@@ -1,0 +1,20 @@
+{
+  "name": "fenghuang",
+  "version": "0.1.0",
+  "description": "A long-term memory layer for AI assistants",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check . && tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "latest",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
