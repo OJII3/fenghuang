@@ -46,7 +46,11 @@
 			"files": ["*.test.ts", "*.spec.ts"],
 			"rules": {
 				"@typescript-eslint/no-explicit-any": "off",
-				"no-console": "off"
+				"@typescript-eslint/no-non-null-assertion": "off",
+				"no-console": "off",
+				"init-declarations": "off",
+				"max-lines-per-function": "off",
+				"max-lines": "off"
 			}
 		}
 	]
