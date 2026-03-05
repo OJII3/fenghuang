@@ -1,0 +1,6 @@
+# agents
+.claude/*.local.json
+.claude/worktrees/*
+
+# direnv
+.direnv/
