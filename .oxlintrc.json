@@ -1,0 +1,53 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "import", "unicorn", "promise"],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"pedantic": "error",
+		"perf": "error",
+		"style": "error",
+		"restriction": "off"
+	},
+	"rules": {
+		"eqeqeq": "error",
+		"no-console": "error",
+		"no-var": "error",
+		"prefer-const": "error",
+		"curly": "error",
+
+		"func-style": "off",
+		"sort-keys": "off",
+		"sort-imports": "off",
+		"id-length": "off",
+		"no-magic-numbers": "off",
+		"no-ternary": "off",
+		"capitalized-comments": "off",
+		"no-warning-comments": "off",
+		"require-await": "off",
+
+		"import/no-cycle": "error",
+		"import/no-named-export": "off",
+		"import/group-exports": "off",
+		"import/exports-last": "off",
+		"import/prefer-default-export": "off",
+		"import/no-default-export": "error",
+
+		"unicorn/no-null": "off",
+		"unicorn/no-zero-fractions": "off",
+
+		"@typescript-eslint/no-explicit-any": "error",
+		"@typescript-eslint/consistent-type-imports": "error",
+		"@typescript-eslint/no-non-null-assertion": "error",
+		"@typescript-eslint/parameter-properties": "off"
+	},
+	"overrides": [
+		{
+			"files": ["*.test.ts", "*.spec.ts"],
+			"rules": {
+				"@typescript-eslint/no-explicit-any": "off",
+				"no-console": "off"
+			}
+		}
+	]
+}

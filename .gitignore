@@ -4,3 +4,16 @@
 
 # direnv
 .direnv/
+
+# dependencies
+node_modules/
+
+# build
+dist/
+
+# environment
+.env
+.env.local
+
+# lock
+bun.lock
