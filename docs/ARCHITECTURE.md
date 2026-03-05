@@ -77,17 +77,17 @@ src/
 ```typescript
 // src/ports/llm.ts
 export interface ChatMessage {
-  role: "system" | "user" | "assistant"
-  content: string
+	role: "system" | "user" | "assistant";
+	content: string;
 }
 
 export interface LLMPort {
-  /** 自由形式のチャット応答 */
-  chat(messages: ChatMessage[]): Promise<string>
-  /** 構造化出力（JSON Schema 準拠） */
-  chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T>
-  /** テキストの埋め込みベクトルを生成 */
-  embed(text: string): Promise<number[]>
+	/** 自由形式のチャット応答 */
+	chat(messages: ChatMessage[]): Promise<string>;
+	/** 構造化出力（JSON Schema 準拠） */
+	chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T>;
+	/** テキストの埋め込みベクトルを生成 */
+	embed(text: string): Promise<number[]>;
 }
 ```
 
@@ -96,29 +96,29 @@ export interface LLMPort {
 ```typescript
 // src/ports/storage.ts
 export interface StoragePort {
-  // エピソード記憶
-  saveEpisode(userId: string, episode: Episode): Promise<void>
-  getEpisodes(userId: string): Promise<Episode[]>
-  getEpisodeById(episodeId: string): Promise<Episode | null>
-  getUnconsolidatedEpisodes(userId: string): Promise<Episode[]>
-  updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void>
-  markEpisodeConsolidated(episodeId: string): Promise<void>
+	// エピソード記憶
+	saveEpisode(userId: string, episode: Episode): Promise<void>;
+	getEpisodes(userId: string): Promise<Episode[]>;
+	getEpisodeById(episodeId: string): Promise<Episode | null>;
+	getUnconsolidatedEpisodes(userId: string): Promise<Episode[]>;
+	updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void>;
+	markEpisodeConsolidated(episodeId: string): Promise<void>;
 
-  // 意味記憶
-  saveFact(userId: string, fact: SemanticFact): Promise<void>
-  getFacts(userId: string): Promise<SemanticFact[]>
-  getFactsByCategory(userId: string, category: FactCategory): Promise<SemanticFact[]>
-  invalidateFact(factId: string, invalidAt: Date): Promise<void>
-  updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void>
+	// 意味記憶
+	saveFact(userId: string, fact: SemanticFact): Promise<void>;
+	getFacts(userId: string): Promise<SemanticFact[]>;
+	getFactsByCategory(userId: string, category: FactCategory): Promise<SemanticFact[]>;
+	invalidateFact(factId: string, invalidAt: Date): Promise<void>;
+	updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void>;
 
-  // メッセージキュー
-  pushMessage(userId: string, message: ChatMessage): Promise<void>
-  getMessageQueue(userId: string): Promise<ChatMessage[]>
-  clearMessageQueue(userId: string): Promise<void>
+	// メッセージキュー
+	pushMessage(userId: string, message: ChatMessage): Promise<void>;
+	getMessageQueue(userId: string): Promise<ChatMessage[]>;
+	clearMessageQueue(userId: string): Promise<void>;
 
-  // 検索
-  searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]>
-  searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]>
+	// 検索
+	searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]>;
+	searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]>;
 }
 ```
 
@@ -126,45 +126,45 @@ export interface StoragePort {
 
 ### 6.1 Episode
 
-| フィールド | 型 | 説明 |
-|---|---|---|
-| id | string | UUID |
-| userId | string | ユーザー識別子 |
-| title | string | エピソードのタイトル（LLM 生成） |
-| summary | string | エピソードの要約（LLM 生成） |
-| messages | ChatMessage[] | 元のメッセージ列 |
-| embedding | number[] | summary の埋め込みベクトル |
-| surprise | number | 驚きスコア（0.0 - 1.0） |
-| stability | number | FSRS stability パラメータ |
-| difficulty | number | FSRS difficulty パラメータ |
-| startAt | Date | エピソード開始時刻 |
-| endAt | Date | エピソード終了時刻 |
-| createdAt | Date | 作成日時 |
-| lastReviewedAt | Date | null | 最後にレビューされた日時 |
-| consolidatedAt | Date | null | 意味記憶に統合された日時 |
+| フィールド     | 型            | 説明                             |
+| -------------- | ------------- | -------------------------------- | ------------------------ |
+| id             | string        | UUID                             |
+| userId         | string        | ユーザー識別子                   |
+| title          | string        | エピソードのタイトル（LLM 生成） |
+| summary        | string        | エピソードの要約（LLM 生成）     |
+| messages       | ChatMessage[] | 元のメッセージ列                 |
+| embedding      | number[]      | summary の埋め込みベクトル       |
+| surprise       | number        | 驚きスコア（0.0 - 1.0）          |
+| stability      | number        | FSRS stability パラメータ        |
+| difficulty     | number        | FSRS difficulty パラメータ       |
+| startAt        | Date          | エピソード開始時刻               |
+| endAt          | Date          | エピソード終了時刻               |
+| createdAt      | Date          | 作成日時                         |
+| lastReviewedAt | Date          | null                             | 最後にレビューされた日時 |
+| consolidatedAt | Date          | null                             | 意味記憶に統合された日時 |
 
 ### 6.2 SemanticFact
 
-| フィールド | 型 | 説明 |
-|---|---|---|
-| id | string | UUID |
-| userId | string | ユーザー識別子 |
-| category | FactCategory | 事実のカテゴリ |
-| fact | string | 事実の内容 |
-| keywords | string[] | キーワード |
-| sourceEpisodicIds | string[] | 出典エピソード ID |
-| embedding | number[] | fact の埋め込みベクトル |
-| validAt | Date | 有効開始日時 |
-| invalidAt | Date | null | 無効化日時 |
-| createdAt | Date | 作成日時 |
+| フィールド        | 型           | 説明                    |
+| ----------------- | ------------ | ----------------------- | ---------- |
+| id                | string       | UUID                    |
+| userId            | string       | ユーザー識別子          |
+| category          | FactCategory | 事実のカテゴリ          |
+| fact              | string       | 事実の内容              |
+| keywords          | string[]     | キーワード              |
+| sourceEpisodicIds | string[]     | 出典エピソード ID       |
+| embedding         | number[]     | fact の埋め込みベクトル |
+| validAt           | Date         | 有効開始日時            |
+| invalidAt         | Date         | null                    | 無効化日時 |
+| createdAt         | Date         | 作成日時                |
 
 ### 6.3 FSRSCard
 
-| フィールド | 型 | 説明 |
-|---|---|---|
-| stability | number | 記憶の安定性 |
-| difficulty | number | 学習難易度 |
-| lastReviewedAt | Date | null | 最後のレビュー日時 |
+| フィールド     | 型     | 説明         |
+| -------------- | ------ | ------------ | ------------------ |
+| stability      | number | 記憶の安定性 |
+| difficulty     | number | 学習難易度   |
+| lastReviewedAt | Date   | null         | 最後のレビュー日時 |
 
 ## 7. 主要シーケンス
 
@@ -226,10 +226,10 @@ tests/
 
 ## 10. 設計上の決定
 
-| 決定 | 理由 |
-|---|---|
-| ライブラリとして提供（HTTP サーバーなし） | vicissitude から直接 import で使えるほうがシンプル |
-| Hexagonal Architecture | LLM/Storage の差し替え容易性、テスト容易性 |
-| SQLite（bun:sqlite） | 組み込みで依存なし、vicissitude と同じ Bun ランタイム |
-| FSRS アルゴリズム | plast-mem で実証済み、記憶の減衰モデルとして自然 |
-| opencode を最初の LLM adapter | vicissitude で既に使用中 |
+| 決定                                      | 理由                                                  |
+| ----------------------------------------- | ----------------------------------------------------- |
+| ライブラリとして提供（HTTP サーバーなし） | vicissitude から直接 import で使えるほうがシンプル    |
+| Hexagonal Architecture                    | LLM/Storage の差し替え容易性、テスト容易性            |
+| SQLite（bun:sqlite）                      | 組み込みで依存なし、vicissitude と同じ Bun ランタイム |
+| FSRS アルゴリズム                         | plast-mem で実証済み、記憶の減衰モデルとして自然      |
+| opencode を最初の LLM adapter             | vicissitude で既に使用中                              |

@@ -1,20 +1,23 @@
 {
-  "name": "fenghuang",
-  "version": "0.1.0",
-  "description": "A long-term memory layer for AI assistants",
-  "module": "src/index.ts",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "lint": "biome lint .",
-    "format": "biome format --write .",
-    "check": "biome check . && tsc --noEmit"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "latest",
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  }
+	"name": "fenghuang",
+	"version": "0.1.0",
+	"private": true,
+	"description": "A long-term memory layer for AI assistants",
+	"type": "module",
+	"module": "src/index.ts",
+	"scripts": {
+		"lint": "oxlint .",
+		"lint:fix": "oxlint --fix .",
+		"fmt": "oxfmt --write .",
+		"fmt:check": "oxfmt --check .",
+		"check": "oxlint --deny-warnings . && oxfmt --check . && tsc --noEmit"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"oxfmt": "^0.36.0",
+		"oxlint": "^1.51.0"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
 }

@@ -32,8 +32,8 @@ Core Domain (Segmenter, EpisodicMemory, FSRS, Consolidation, Retrieval)
 import { createFenghuang } from "fenghuang";
 
 const mem = createFenghuang({
-  llm: yourLLMAdapter,
-  storage: yourStorageAdapter,
+	llm: yourLLMAdapter,
+	storage: yourStorageAdapter,
 });
 ```
 

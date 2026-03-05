@@ -6,9 +6,9 @@ import type { StoragePort } from "../../ports/storage.ts";
 
 /** In-memory storage adapter for testing */
 export class InMemoryStorageAdapter implements StoragePort {
-	private episodes: Map<string, Episode> = new Map();
-	private facts: Map<string, SemanticFact> = new Map();
-	private messageQueues: Map<string, ChatMessage[]> = new Map();
+	private episodes = new Map<string, Episode>();
+	private facts = new Map<string, SemanticFact>();
+	private messageQueues = new Map<string, ChatMessage[]>();
 
 	// --- Episodic memory ---
 
@@ -32,7 +32,9 @@ export class InMemoryStorageAdapter implements StoragePort {
 
 	async updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void> {
 		const episode = this.episodes.get(episodeId);
-		if (!episode) return;
+		if (!episode) {
+			return;
+		}
 		episode.stability = card.stability;
 		episode.difficulty = card.difficulty;
 		episode.lastReviewedAt = card.lastReviewedAt;
@@ -40,7 +42,9 @@ export class InMemoryStorageAdapter implements StoragePort {
 
 	async markEpisodeConsolidated(episodeId: string): Promise<void> {
 		const episode = this.episodes.get(episodeId);
-		if (!episode) return;
+		if (!episode) {
+			return;
+		}
 		episode.consolidatedAt = new Date();
 	}
 
@@ -62,13 +66,17 @@ export class InMemoryStorageAdapter implements StoragePort {
 
 	async invalidateFact(factId: string, invalidAt: Date): Promise<void> {
 		const fact = this.facts.get(factId);
-		if (!fact) return;
+		if (!fact) {
+			return;
+		}
 		fact.invalidAt = invalidAt;
 	}
 
 	async updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void> {
 		const fact = this.facts.get(factId);
-		if (!fact) return;
+		if (!fact) {
+			return;
+		}
 		Object.assign(fact, updates);
 	}
 

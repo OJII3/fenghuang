@@ -14,13 +14,15 @@ Inspired by [plast-mem](https://github.com/moeru-ai/plast-mem). Built with Bun +
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `bun test` | Run tests |
-| `bun build` | Build |
-| `nr lint` | Run biome lint |
-| `nr format` | Run biome format |
-| `nr check` | Run lint + format + type check |
+| Command        | Description                          |
+| -------------- | ------------------------------------ |
+| `bun test`     | Run tests                            |
+| `bun build`    | Build                                |
+| `nr lint`      | Run oxlint                           |
+| `nr lint:fix`  | Run oxlint with auto-fix             |
+| `nr fmt`       | Format with oxfmt                    |
+| `nr fmt:check` | Check formatting (CI)                |
+| `nr check`     | Run oxlint + oxfmt + tsc --noEmit    |
 
 ## Architecture Overview: Hexagonal Architecture (Ports & Adapters)
 
