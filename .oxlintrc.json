@@ -4,14 +4,14 @@
 	"categories": {
 		"correctness": "error",
 		"suspicious": "error",
-		"pedantic": "warn",
-		"perf": "warn",
-		"style": "warn",
+		"pedantic": "error",
+		"perf": "error",
+		"style": "error",
 		"restriction": "off"
 	},
 	"rules": {
 		"eqeqeq": "error",
-		"no-console": "warn",
+		"no-console": "error",
 		"no-var": "error",
 		"prefer-const": "error",
 		"curly": "error",
@@ -31,14 +31,14 @@
 		"import/group-exports": "off",
 		"import/exports-last": "off",
 		"import/prefer-default-export": "off",
-		"import/no-default-export": "warn",
+		"import/no-default-export": "error",
 
 		"unicorn/no-null": "off",
 		"unicorn/no-zero-fractions": "off",
 
 		"@typescript-eslint/no-explicit-any": "error",
 		"@typescript-eslint/consistent-type-imports": "error",
-		"@typescript-eslint/no-non-null-assertion": "warn",
+		"@typescript-eslint/no-non-null-assertion": "error",
 		"@typescript-eslint/parameter-properties": "off"
 	},
 	"overrides": [
