@@ -64,6 +64,7 @@ src/
 │   ├── segmenter.ts    # Event segmentation
 │   ├── episodic.ts     # Episodic memory service
 │   ├── consolidation.ts # Semantic consolidation pipeline
+│   ├── semantic-memory.ts   # Semantic memory service
 │   └── retrieval.ts    # Memory retrieval service
 ├── ports/          # Interface definitions (LLMPort, StoragePort)
 ├── adapters/       # External dependencies

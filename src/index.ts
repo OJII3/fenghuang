@@ -2,6 +2,7 @@ import { ConsolidationPipeline } from "./core/consolidation.ts";
 import { EpisodicMemory } from "./core/episodic.ts";
 import { Retrieval } from "./core/retrieval.ts";
 import { Segmenter } from "./core/segmenter.ts";
+import { SemanticMemory } from "./core/semantic-memory.ts";
 import type { LLMPort } from "./ports/llm.ts";
 import type { StoragePort } from "./ports/storage.ts";
 
@@ -27,6 +28,13 @@ export type { StoragePort } from "./ports/storage.ts";
 export { Segmenter } from "./core/segmenter.ts";
 export type { SegmenterConfig, SegmentResult, SegmentationOutput } from "./core/segmenter.ts";
 export { EpisodicMemory } from "./core/episodic.ts";
+export { ConsolidationPipeline } from "./core/consolidation.ts";
+export type {
+	ConsolidationResult,
+	ConsolidationOutput,
+	ExtractedFact,
+} from "./core/consolidation.ts";
+export { SemanticMemory } from "./core/semantic-memory.ts";
 // Re-export adapters
 export { InMemoryStorageAdapter } from "./adapters/storage/in-memory.ts";
 export { SQLiteStorageAdapter } from "./adapters/storage/sqlite.ts";
@@ -38,6 +46,7 @@ export interface Fenghuang {
 	segmenter: Segmenter;
 	episodic: EpisodicMemory;
 	consolidation: ConsolidationPipeline;
+	semantic: SemanticMemory;
 	retrieval: Retrieval;
 }
 
@@ -55,6 +64,7 @@ export function createFenghuang(opts: CreateFenghuangOptions): Fenghuang {
 		segmenter: new Segmenter(llm, storage),
 		episodic: new EpisodicMemory(storage),
 		consolidation: new ConsolidationPipeline(llm, storage),
+		semantic: new SemanticMemory(storage),
 		retrieval: new Retrieval(llm, storage),
 	};
 }
