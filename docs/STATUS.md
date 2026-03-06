@@ -44,23 +44,25 @@
 | Episode テスト            | `tests/core/domain/episode.test.ts`        | 完了（9件）  |
 | SemanticFact テスト       | `tests/core/domain/semantic-fact.test.ts`  | 完了（6件）  |
 | FSRS テスト               | `tests/core/domain/fsrs.test.ts`           | 完了（15件） |
-| In-memory adapter テスト  | `tests/adapters/storage/in-memory.test.ts` | 完了（25件） |
+| In-memory adapter テスト  | `tests/adapters/storage/in-memory.test.ts` | 完了（27件） |
 
 ## 5. M2 成果物
 
-| 項目                  | ファイル                                     | ステータス   |
-| --------------------- | -------------------------------------------- | ------------ |
-| SQLite StoragePort    | `src/adapters/storage/sqlite.ts`             | 完了         |
-| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`      | 完了（30件） |
-| Segmenter             | `src/core/segmenter.ts`                      | 完了         |
-| Segmenter テスト      | `tests/core/segmenter.test.ts`               | 完了（17件） |
-| EpisodicMemory        | `src/core/episodic.ts`                       | 完了         |
-| EpisodicMemory テスト | `tests/core/episodic.test.ts`                | 完了（16件） |
-| 統合テスト            | `tests/integration/segmenter-sqlite.test.ts` | 完了（6件）  |
-| Public API 更新       | `src/index.ts`                               | 完了         |
-| Vercel AI LLM adapter | `src/adapters/llm/vercel-ai.ts`              | 完了         |
-| Vercel AI テスト      | `tests/adapters/llm/vercel-ai.test.ts`       | 完了（18件） |
-| Public API テスト     | `tests/index.test.ts`                        | 完了（1件）  |
+| 項目                  | ファイル                                       | ステータス   |
+| --------------------- | ---------------------------------------------- | ------------ |
+| SQLite StoragePort    | `src/adapters/storage/sqlite.ts`               | 完了         |
+| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`        | 完了（42件） |
+| Segmenter             | `src/core/segmenter.ts`                        | 完了         |
+| Segmenter テスト      | `tests/core/segmenter.test.ts`                 | 完了（17件） |
+| EpisodicMemory        | `src/core/episodic.ts`                         | 完了         |
+| EpisodicMemory テスト | `tests/core/episodic.test.ts`                  | 完了（16件） |
+| 統合テスト            | `tests/integration/segmenter-sqlite.test.ts`   | 完了（6件）  |
+| Public API 更新       | `src/index.ts`                                 | 完了         |
+| Vercel AI LLM adapter | `src/adapters/llm/vercel-ai.ts`                | 完了         |
+| Vercel AI テスト      | `tests/adapters/llm/vercel-ai.test.ts`         | 完了（18件） |
+| parse-helpers         | `src/adapters/storage/parse-helpers.ts`        | 完了         |
+| parse-helpers テスト  | `tests/adapters/storage/parse-helpers.test.ts` | 完了（30件） |
+| Public API テスト     | `tests/index.test.ts`                          | 完了（1件）  |
 
 ### M2 設計上の決定
 
@@ -91,6 +93,10 @@
 1. Retrieval サービスの実装（エピソード + セマンティック統合検索、RRF リランキング）
 2. FTS5 による全文検索の導入
 3. ハイブリッド検索（ベクトル + テキスト）の実装
+
+## 6.6 技術的負債
+
+1. `sqlite.ts` が 350 行上限ギリギリ（349/350）— Row 型 + 変換関数を別ファイルに分離すべき
 
 ## 7. ブロッカー
 
