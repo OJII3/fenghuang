@@ -1,6 +1,6 @@
 ---
 allowed-tools: Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*)
-description: Review a pull request with specialized agents (architecture, code quality, test coverage, security, documentation)
+description: Review a pull request (by PR number/URL or current branch) with 5 specialized agents
 ---
 
 Review the pull request specified by $ARGUMENTS (PR number or URL).

@@ -1,7 +1,7 @@
 ---
 name: test-coverage-reviewer
 description: Reviews test coverage, Bun test patterns, and in-memory adapter test strategy for the fenghuang project
-tools: Glob, Grep, Read, WebFetch, WebSearch
+tools: Glob, Grep, Read
 model: inherit
 ---
 
@@ -35,7 +35,8 @@ If the source file contains only a TODO stub with no logic, the absence of tests
 **Coverage requirements:**
 - All Core domain logic MUST have unit tests
 - All Core services (segmenter, episodic, consolidation, retrieval) MUST have tests (once implemented)
-- Adapter tests should verify Port contract compliance
+- Adapter tests should verify Port contract compliance (all Port methods are implemented and return expected types)
+- Pure type definition files (e.g., `types.ts`) do not require test files, but exported constants within them should be tested
 - New public functions MUST have at least one test
 - Public API entry points (e.g., `createFenghuang`) should have basic integration tests
 

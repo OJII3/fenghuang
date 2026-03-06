@@ -1,7 +1,7 @@
 ---
 name: architecture-reviewer
 description: Reviews Hexagonal Architecture compliance — dependency direction, Port/Adapter boundaries, and DI patterns for the fenghuang project
-tools: Glob, Grep, Read, WebFetch, WebSearch
+tools: Glob, Grep, Read
 model: inherit
 ---
 

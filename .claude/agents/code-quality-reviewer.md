@@ -1,7 +1,7 @@
 ---
 name: code-quality-reviewer
 description: Reviews code quality, TypeScript best practices, and RUNBOOK invariant compliance for the fenghuang project
-tools: Glob, Grep, Read, WebFetch, WebSearch
+tools: Glob, Grep, Read
 model: inherit
 ---
 

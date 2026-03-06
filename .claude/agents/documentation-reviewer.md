@@ -1,7 +1,7 @@
 ---
 name: documentation-reviewer
 description: Reviews CLAUDE.md, docs/*.md, and inline code comments for accuracy, consistency, and completeness in the fenghuang project
-tools: Glob, Grep, Read, WebFetch, WebSearch
+tools: Glob, Grep, Read, WebFetch
 model: inherit
 ---
 

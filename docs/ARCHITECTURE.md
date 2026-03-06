@@ -126,8 +126,8 @@ export interface StoragePort {
 
 ### 6.1 Episode
 
-| フィールド     | 型            | 説明                             |
-| -------------- | ------------- | -------------------------------- | ------------------------ |
+| フィールド     | 型              | 説明                             |
+| -------------- | --------------- | -------------------------------- |
 | id             | string        | UUID                             |
 | userId         | string        | ユーザー識別子                   |
 | title          | string        | エピソードのタイトル（LLM 生成） |
@@ -140,13 +140,13 @@ export interface StoragePort {
 | startAt        | Date          | エピソード開始時刻               |
 | endAt          | Date          | エピソード終了時刻               |
 | createdAt      | Date          | 作成日時                         |
-| lastReviewedAt | Date          | null                             | 最後にレビューされた日時 |
-| consolidatedAt | Date          | null                             | 意味記憶に統合された日時 |
+| lastReviewedAt | `Date \| null`  | 最後にレビューされた日時 |
+| consolidatedAt | `Date \| null`  | 意味記憶に統合された日時 |
 
 ### 6.2 SemanticFact
 
-| フィールド        | 型           | 説明                    |
-| ----------------- | ------------ | ----------------------- | ---------- |
+| フィールド        | 型             | 説明                    |
+| ----------------- | -------------- | ----------------------- |
 | id                | string       | UUID                    |
 | userId            | string       | ユーザー識別子          |
 | category          | FactCategory | 事実のカテゴリ          |
@@ -155,16 +155,16 @@ export interface StoragePort {
 | sourceEpisodicIds | string[]     | 出典エピソード ID       |
 | embedding         | number[]     | fact の埋め込みベクトル |
 | validAt           | Date         | 有効開始日時            |
-| invalidAt         | Date         | null                    | 無効化日時 |
+| invalidAt         | `Date \| null` | 無効化日時 |
 | createdAt         | Date         | 作成日時                |
 
 ### 6.3 FSRSCard
 
-| フィールド     | 型     | 説明         |
-| -------------- | ------ | ------------ | ------------------ |
+| フィールド     | 型             | 説明               |
+| -------------- | -------------- | ------------------ |
 | stability      | number | 記憶の安定性 |
 | difficulty     | number | 学習難易度   |
-| lastReviewedAt | Date   | null         | 最後のレビュー日時 |
+| lastReviewedAt | `Date \| null` | 最後のレビュー日時 |
 
 ## 7. 主要シーケンス
 

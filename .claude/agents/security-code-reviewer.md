@@ -1,7 +1,7 @@
 ---
 name: security-code-reviewer
 description: Reviews security concerns — secrets leakage, LLM prompt injection, input validation, and data exposure for the fenghuang project
-tools: Glob, Grep, Read, WebFetch, WebSearch
+tools: Glob, Grep, Read
 model: inherit
 ---
 
