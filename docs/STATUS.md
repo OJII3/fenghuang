@@ -8,7 +8,7 @@
 
 - **M3: ConsolidationPipeline + SemanticMemory は完了**
 - M1 の Core ドメイン + In-memory adapter、M2 の Segmenter + EpisodicMemory + SQLite + Vercel AI adapter に加え、意味記憶統合パイプラインが実装済み
-- テスト 212 件が全通過（`bun test`）
+- テスト 260 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -112,6 +112,26 @@
 | WARNING  | dispatchAction の戻り値が void で失敗検知不可                                   | 修正済み |
 | WARNING  | ActionContext の now が非決定的（テスト不安定）                                 | 修正済み |
 | WARNING  | Segmenter スキーマで Error→TypeError 不統一                                     | 修正済み |
+
+### PR #8 レビューで検出・修正済み
+
+| 優先度   | 項目                                                                                                               | 対応状況 |
+| -------- | ------------------------------------------------------------------------------------------------------------------ | -------- |
+| CRITICAL | `parse-helpers.ts` に専用テストなし                                                                                | 修正済み |
+| CRITICAL | メッセージキューのテナント分離テストなし                                                                           | 修正済み |
+| CRITICAL | ARCHITECTURE.md §5.2 StoragePort が旧シグネチャ                                                                    | 修正済み |
+| WARNING  | `updateFact` で `userId`/`id` 上書き可能（**破壊的変更**: `Partial<Omit<SemanticFact, "id" \| "userId">>` に変更） | 修正済み |
+| WARNING  | `parseJson<T>` ジェネリックが偽の型安全性                                                                          | 修正済み |
+| WARNING  | `validateMessages` で role 有効値チェックなし                                                                      | 修正済み |
+| WARNING  | `validateMessages` で timestamp 型チェックなし                                                                     | 修正済み |
+| WARNING  | SQLite `rowToFact` の category ランタイム検証なし                                                                  | 修正済み |
+| WARNING  | SQLite `rowToMessage` の role ランタイム検証なし                                                                   | 修正済み |
+| WARNING  | `validateEmbedding` に上限長チェックなし                                                                           | 修正済み |
+| WARNING  | `validateStringArray` に上限長チェックなし                                                                         | 修正済み |
+| WARNING  | ARCHITECTURE.md §4 ディレクトリ構成に新規ファイル未反映                                                            | 修正済み |
+| WARNING  | SQLite search limit クランプテストなし                                                                             | 修正済み |
+| WARNING  | SQLite `escapeLike` ワイルドカードテストなし                                                                       | 修正済み |
+| WARNING  | STATUS.md に破壊的 API 変更記載なし                                                                                | 修正済み |
 
 ### PR #6 レビューで検出（既存コードベース対象）
 

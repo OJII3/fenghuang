@@ -50,7 +50,8 @@ src/
 │   │   ├── episode.ts       # Episode エンティティ
 │   │   ├── semantic-fact.ts # SemanticFact エンティティ
 │   │   ├── fsrs.ts          # FSRS 純粋関数
-│   │   └── types.ts         # 共有型定義
+│   │   ├── types.ts         # 共有型定義
+│   │   └── utils.ts         # ドメインユーティリティ（XML エスケープ等）
 │   ├── segmenter.ts         # イベントセグメンテーション
 │   ├── episodic.ts          # エピソード記憶サービス
 │   ├── consolidation.ts     # 意味記憶統合パイプライン
@@ -67,7 +68,8 @@ src/
 │   │   └── utils.ts        # LLM adapter 共有ユーティリティ
 │   └── storage/
 │       ├── sqlite.ts       # SQLite adapter（bun:sqlite）
-│       └── in-memory.ts    # In-memory adapter（テスト用）
+│       ├── in-memory.ts    # In-memory adapter（テスト用）
+│       └── parse-helpers.ts # JSON パース・バリデーションヘルパー
 │
 └── index.ts                 # Public API + DI
 ```
@@ -104,17 +106,21 @@ export interface StoragePort {
 	// エピソード記憶
 	saveEpisode(userId: string, episode: Episode): Promise<void>;
 	getEpisodes(userId: string): Promise<Episode[]>;
-	getEpisodeById(episodeId: string): Promise<Episode | null>;
+	getEpisodeById(userId: string, episodeId: string): Promise<Episode | null>;
 	getUnconsolidatedEpisodes(userId: string): Promise<Episode[]>;
-	updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void>;
-	markEpisodeConsolidated(episodeId: string): Promise<void>;
+	updateEpisodeFSRS(userId: string, episodeId: string, card: FSRSCard): Promise<void>;
+	markEpisodeConsolidated(userId: string, episodeId: string): Promise<void>;
 
 	// 意味記憶
 	saveFact(userId: string, fact: SemanticFact): Promise<void>;
 	getFacts(userId: string): Promise<SemanticFact[]>;
 	getFactsByCategory(userId: string, category: FactCategory): Promise<SemanticFact[]>;
-	invalidateFact(factId: string, invalidAt: Date): Promise<void>;
-	updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void>;
+	invalidateFact(userId: string, factId: string, invalidAt: Date): Promise<void>;
+	updateFact(
+		userId: string,
+		factId: string,
+		updates: Partial<Omit<SemanticFact, "id" | "userId">>,
+	): Promise<void>;
 
 	// メッセージキュー
 	pushMessage(userId: string, message: ChatMessage): Promise<void>;
@@ -233,7 +239,8 @@ tests/
 │   ├── domain/
 │   │   ├── episode.test.ts
 │   │   ├── semantic-fact.test.ts
-│   │   └── fsrs.test.ts
+│   │   ├── fsrs.test.ts
+│   │   └── utils.test.ts
 │   ├── segmenter.test.ts
 │   ├── episodic.test.ts
 │   ├── consolidation.test.ts
@@ -243,10 +250,12 @@ tests/
 │   └── segmenter-sqlite.test.ts
 ├── adapters/
 │   ├── llm/
-│   │   └── vercel-ai.test.ts
+│   │   ├── vercel-ai.test.ts
+│   │   └── utils.test.ts
 │   └── storage/
 │       ├── sqlite.test.ts
-│       └── in-memory.test.ts
+│       ├── in-memory.test.ts
+│       └── parse-helpers.test.ts
 └── index.test.ts
 ```
 
