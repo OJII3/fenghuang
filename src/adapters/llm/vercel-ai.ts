@@ -3,6 +3,7 @@ import { embed, generateText } from "ai";
 
 import type { ChatMessage } from "../../core/domain/types.ts";
 import type { LLMPort, Schema } from "../../ports/llm.ts";
+import { JSON_INSTRUCTION, cleanJsonResponse } from "./utils.ts";
 
 /** Options for creating a VercelAIAdapter */
 export interface VercelAIAdapterOptions {
@@ -46,6 +47,12 @@ export class VercelAIAdapter implements LLMPort {
 	async chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T> {
 		const { system, userMessages } = separateMessages(messages);
 
+		if (userMessages.length === 0 || userMessages.at(-1)?.role !== "user") {
+			throw new Error(
+				"VercelAIAdapter: chatStructured requires at least one message and the last message must have role 'user'",
+			);
+		}
+
 		// Append JSON instruction to the last user message
 		const augmented = appendJsonInstruction(userMessages);
 
@@ -56,7 +63,12 @@ export class VercelAIAdapter implements LLMPort {
 			...buildGenerationOptions(this.temperature, this.maxTokens),
 		});
 
-		const parsed: unknown = JSON.parse(cleanJsonResponse(result.text));
+		let parsed: unknown = undefined;
+		try {
+			parsed = JSON.parse(cleanJsonResponse(result.text));
+		} catch {
+			throw new Error("VercelAIAdapter: LLM response was not valid JSON");
+		}
 		return schema.parse(parsed);
 	}
 
@@ -117,18 +129,8 @@ function appendJsonInstruction(
 	if (lastIdx >= 0 && lastMsg && lastMsg.role === "user") {
 		augmented[lastIdx] = {
 			...lastMsg,
-			content: `${lastMsg.content}\n\nIMPORTANT: Respond ONLY with valid JSON. No markdown, no code fences, no explanation.`,
+			content: `${lastMsg.content}\n\n${JSON_INSTRUCTION}`,
 		};
 	}
 	return augmented;
-}
-
-/** Clean LLM response that may contain markdown code fences */
-function cleanJsonResponse(text: string): string {
-	const trimmed = text.trim();
-	const fenceMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/);
-	if (fenceMatch?.[1]) {
-		return fenceMatch[1].trim();
-	}
-	return trimmed;
 }

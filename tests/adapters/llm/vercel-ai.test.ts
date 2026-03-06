@@ -80,7 +80,17 @@ describe("VercelAIAdapter — chat", () => {
 		};
 
 		const adapter = createAdapter();
-		expect(adapter.chat([{ role: "user", content: "Hi" }])).rejects.toThrow("API request failed");
+		await expect(adapter.chat([{ role: "user", content: "Hi" }])).rejects.toThrow(
+			"API request failed",
+		);
+	});
+
+	test("chat with empty messages array", async () => {
+		state.generateText = async () => ({ text: "" });
+
+		const adapter = createAdapter();
+		const result = await adapter.chat([]);
+		expect(result).toBe("");
 	});
 });
 
@@ -142,9 +152,9 @@ describe("VercelAIAdapter — chatStructured", () => {
 			},
 		};
 
-		expect(adapter.chatStructured([{ role: "user", content: "test" }], schema)).rejects.toThrow(
-			"Schema validation failed",
-		);
+		await expect(
+			adapter.chatStructured([{ role: "user", content: "test" }], schema),
+		).rejects.toThrow("Schema validation failed");
 	});
 
 	test("chatStructured propagates errors", async () => {
@@ -155,9 +165,35 @@ describe("VercelAIAdapter — chatStructured", () => {
 		const adapter = createAdapter();
 		const schema = { parse: (d: unknown) => d };
 
-		expect(adapter.chatStructured([{ role: "user", content: "test" }], schema)).rejects.toThrow(
-			"Structured request failed",
-		);
+		await expect(
+			adapter.chatStructured([{ role: "user", content: "test" }], schema),
+		).rejects.toThrow("Structured request failed");
+	});
+
+	test("chatStructured throws when last message is assistant", async () => {
+		const adapter = createAdapter();
+		const schema = { parse: (d: unknown) => d };
+
+		await expect(
+			adapter.chatStructured(
+				[
+					{ role: "user", content: "Hello" },
+					{ role: "assistant", content: "Hi there" },
+				],
+				schema,
+			),
+		).rejects.toThrow("last message must have role 'user'");
+	});
+
+	test("chatStructured throws on invalid JSON response", async () => {
+		state.generateText = async () => ({ text: "this is not json at all" });
+
+		const adapter = createAdapter();
+		const schema = { parse: (d: unknown) => d };
+
+		await expect(
+			adapter.chatStructured([{ role: "user", content: "test" }], schema),
+		).rejects.toThrow("VercelAIAdapter: LLM response was not valid JSON");
 	});
 });
 
@@ -190,7 +226,7 @@ describe("VercelAIAdapter — embed", () => {
 		};
 
 		const adapter = createAdapter();
-		expect(adapter.embed("hello")).rejects.toThrow("Embedding failed");
+		await expect(adapter.embed("hello")).rejects.toThrow("Embedding failed");
 	});
 });
 
@@ -207,6 +243,21 @@ describe("VercelAIAdapter — options", () => {
 
 		expect(capturedOpts.temperature).toBe(0.7);
 		expect(capturedOpts.maxTokens).toBe(1024);
+	});
+
+	test("temperature and maxTokens are passed to chatStructured", async () => {
+		let capturedOpts: Record<string, unknown> = {};
+		state.generateText = async (opts) => {
+			capturedOpts = opts;
+			return { text: '{"ok": true}' };
+		};
+
+		const adapter = createAdapter({ temperature: 0.5, maxTokens: 512 });
+		const schema = { parse: (d: unknown) => d };
+		await adapter.chatStructured([{ role: "user", content: "test" }], schema);
+
+		expect(capturedOpts.temperature).toBe(0.5);
+		expect(capturedOpts.maxTokens).toBe(512);
 	});
 
 	test("options are omitted when not provided", async () => {
