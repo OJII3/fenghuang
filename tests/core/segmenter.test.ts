@@ -479,6 +479,31 @@ describe("Segmenter — schema validation", () => {
 	});
 });
 
+describe("Segmenter — maxQueueSize", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("throws when queue exceeds maxQueueSize", async () => {
+		const segmenter = new Segmenter(createMockLLM(), storage, {
+			minMessages: 5,
+			softTrigger: 100,
+			hardTrigger: 200,
+			maxQueueSize: 3,
+		});
+
+		await segmenter.addMessage(userId, makeMessage("msg 1"));
+		await segmenter.addMessage(userId, makeMessage("msg 2"));
+		await segmenter.addMessage(userId, makeMessage("msg 3"));
+
+		await expect(segmenter.addMessage(userId, makeMessage("msg 4"))).rejects.toThrow(
+			"exceeds maximum size",
+		);
+	});
+});
+
 describe("Segmenter — edge cases", () => {
 	let storage: InMemoryStorageAdapter;
 

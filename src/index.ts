@@ -28,6 +28,7 @@ export type { StoragePort } from "./ports/storage.ts";
 export { Segmenter } from "./core/segmenter.ts";
 export type { SegmenterConfig, SegmentResult, SegmentationOutput } from "./core/segmenter.ts";
 export { EpisodicMemory } from "./core/episodic.ts";
+export type { ReviewOptions } from "./core/episodic.ts";
 export { ConsolidationPipeline } from "./core/consolidation.ts";
 export type {
 	ConsolidationResult,

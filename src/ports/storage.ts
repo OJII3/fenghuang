@@ -8,17 +8,21 @@ export interface StoragePort {
 	// Episodic memory
 	saveEpisode(userId: string, episode: Episode): Promise<void>;
 	getEpisodes(userId: string): Promise<Episode[]>;
-	getEpisodeById(episodeId: string): Promise<Episode | null>;
+	getEpisodeById(userId: string, episodeId: string): Promise<Episode | null>;
 	getUnconsolidatedEpisodes(userId: string): Promise<Episode[]>;
-	updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void>;
-	markEpisodeConsolidated(episodeId: string): Promise<void>;
+	updateEpisodeFSRS(userId: string, episodeId: string, card: FSRSCard): Promise<void>;
+	markEpisodeConsolidated(userId: string, episodeId: string): Promise<void>;
 
 	// Semantic memory
 	saveFact(userId: string, fact: SemanticFact): Promise<void>;
 	getFacts(userId: string): Promise<SemanticFact[]>;
 	getFactsByCategory(userId: string, category: FactCategory): Promise<SemanticFact[]>;
-	invalidateFact(factId: string, invalidAt: Date): Promise<void>;
-	updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void>;
+	invalidateFact(userId: string, factId: string, invalidAt: Date): Promise<void>;
+	updateFact(
+		userId: string,
+		factId: string,
+		updates: Partial<Omit<SemanticFact, "id" | "userId">>,
+	): Promise<void>;
 
 	// Message queue
 	pushMessage(userId: string, message: ChatMessage): Promise<void>;

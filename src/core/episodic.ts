@@ -3,6 +3,13 @@ import type { Episode } from "./domain/episode.ts";
 import type { FSRSCard } from "./domain/fsrs.ts";
 import { retrievability, reviewCard } from "./domain/fsrs.ts";
 import type { ReviewRating } from "./domain/types.ts";
+import { validateUserId } from "./domain/utils.ts";
+
+/** Options for reviewing an episode */
+export interface ReviewOptions {
+	rating: ReviewRating;
+	now?: Date;
+}
 
 /** Episodic memory service — manages episode lifecycle */
 export class EpisodicMemory {
@@ -10,21 +17,25 @@ export class EpisodicMemory {
 
 	/** Get all episodes for a user */
 	async getEpisodes(userId: string): Promise<Episode[]> {
+		validateUserId(userId);
 		return this.storage.getEpisodes(userId);
 	}
 
 	/** Get a single episode by ID */
-	async getEpisodeById(episodeId: string): Promise<Episode | null> {
-		return this.storage.getEpisodeById(episodeId);
+	async getEpisodeById(userId: string, episodeId: string): Promise<Episode | null> {
+		validateUserId(userId);
+		return this.storage.getEpisodeById(userId, episodeId);
 	}
 
 	/** Get unconsolidated episodes for a user */
 	async getUnconsolidated(userId: string): Promise<Episode[]> {
+		validateUserId(userId);
 		return this.storage.getUnconsolidatedEpisodes(userId);
 	}
 
 	/** Search episodes by query */
 	async search(userId: string, query: string, limit: number): Promise<Episode[]> {
+		validateUserId(userId);
 		return this.storage.searchEpisodes(userId, query, limit);
 	}
 
@@ -33,11 +44,12 @@ export class EpisodicMemory {
 	 * Called when a memory is retrieved and its relevance is evaluated.
 	 */
 	async review(
+		userId: string,
 		episodeId: string,
-		rating: ReviewRating,
-		now: Date = new Date(),
+		options: ReviewOptions,
 	): Promise<FSRSCard | null> {
-		const episode = await this.storage.getEpisodeById(episodeId);
+		validateUserId(userId);
+		const episode = await this.storage.getEpisodeById(userId, episodeId);
 		if (!episode) {
 			return null;
 		}
@@ -48,14 +60,16 @@ export class EpisodicMemory {
 			lastReviewedAt: episode.lastReviewedAt,
 		};
 
-		const updated = reviewCard(card, rating, now);
-		await this.storage.updateEpisodeFSRS(episodeId, updated);
+		const reviewTime = options.now ?? new Date();
+		const updated = reviewCard(card, options.rating, reviewTime);
+		await this.storage.updateEpisodeFSRS(userId, episodeId, updated);
 		return updated;
 	}
 
 	/** Mark an episode as consolidated into semantic memory */
-	async markConsolidated(episodeId: string): Promise<void> {
-		return this.storage.markEpisodeConsolidated(episodeId);
+	async markConsolidated(userId: string, episodeId: string): Promise<void> {
+		validateUserId(userId);
+		return this.storage.markEpisodeConsolidated(userId, episodeId);
 	}
 
 	/** Calculate the current retrievability of an episode */

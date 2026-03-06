@@ -5,19 +5,14 @@ import type { FSRSCard } from "../../core/domain/fsrs.ts";
 import type { SemanticFact } from "../../core/domain/semantic-fact.ts";
 import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
+import type { EpisodeRow, FactRow, MessageRow } from "./sqlite-rows.ts";
+import { rowToEpisode, rowToFact, rowToMessage } from "./sqlite-rows.ts";
 
-/* eslint-disable unicorn/prefer-string-raw -- backslash-heavy escaping is clearer with regular strings */
 function escapeLike(s: string): string {
-	return s.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
-}
-/* eslint-enable unicorn/prefer-string-raw */
-
-function parseJson<T>(raw: string, field: string): T {
-	try {
-		return JSON.parse(raw) as T;
-	} catch {
-		throw new Error(`Failed to parse ${field}: ${raw.slice(0, 100)}`);
-	}
+	return s
+		.replaceAll("\\", String.raw`\\`)
+		.replaceAll("%", String.raw`\%`)
+		.replaceAll("_", String.raw`\_`);
 }
 
 /** SQLite storage adapter using bun:sqlite */
@@ -84,8 +79,10 @@ export class SQLiteStorageAdapter implements StoragePort {
 		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)`);
 	}
 
-	// _userId is required by StoragePort interface; episode.userId is used for the actual insert
-	async saveEpisode(_userId: string, episode: Episode): Promise<void> {
+	async saveEpisode(userId: string, episode: Episode): Promise<void> {
+		if (episode.userId !== userId) {
+			throw new Error("episode.userId does not match userId");
+		}
 		this.db
 			.prepare(
 				`INSERT INTO episodes (id, user_id, title, summary, messages, embedding, surprise, stability, difficulty, start_at, end_at, created_at, last_reviewed_at, consolidated_at)
@@ -116,10 +113,10 @@ export class SQLiteStorageAdapter implements StoragePort {
 		return rows.map((r) => rowToEpisode(r));
 	}
 
-	async getEpisodeById(episodeId: string): Promise<Episode | null> {
+	async getEpisodeById(userId: string, episodeId: string): Promise<Episode | null> {
 		const row = this.db
-			.prepare("SELECT * FROM episodes WHERE id = ?")
-			.get(episodeId) as EpisodeRow | null;
+			.prepare("SELECT * FROM episodes WHERE id = ? AND user_id = ?")
+			.get(episodeId, userId) as EpisodeRow | null;
 		return row ? rowToEpisode(row) : null;
 	}
 
@@ -130,22 +127,30 @@ export class SQLiteStorageAdapter implements StoragePort {
 		return rows.map((r) => rowToEpisode(r));
 	}
 
-	async updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void> {
+	async updateEpisodeFSRS(userId: string, episodeId: string, card: FSRSCard): Promise<void> {
 		this.db
 			.prepare(
-				"UPDATE episodes SET stability = ?, difficulty = ?, last_reviewed_at = ? WHERE id = ?",
+				"UPDATE episodes SET stability = ?, difficulty = ?, last_reviewed_at = ? WHERE id = ? AND user_id = ?",
 			)
-			.run(card.stability, card.difficulty, card.lastReviewedAt?.getTime() ?? null, episodeId);
+			.run(
+				card.stability,
+				card.difficulty,
+				card.lastReviewedAt?.getTime() ?? null,
+				episodeId,
+				userId,
+			);
 	}
 
-	async markEpisodeConsolidated(episodeId: string): Promise<void> {
+	async markEpisodeConsolidated(userId: string, episodeId: string): Promise<void> {
 		this.db
-			.prepare("UPDATE episodes SET consolidated_at = ? WHERE id = ?")
-			.run(Date.now(), episodeId);
+			.prepare("UPDATE episodes SET consolidated_at = ? WHERE id = ? AND user_id = ?")
+			.run(Date.now(), episodeId, userId);
 	}
 
-	// _userId is required by StoragePort interface; fact.userId is used for the actual insert
-	async saveFact(_userId: string, fact: SemanticFact): Promise<void> {
+	async saveFact(userId: string, fact: SemanticFact): Promise<void> {
+		if (fact.userId !== userId) {
+			throw new Error("fact.userId does not match userId");
+		}
 		this.db
 			.prepare(
 				`INSERT INTO semantic_facts (id, user_id, category, fact, keywords, source_episodic_ids, embedding, valid_at, invalid_at, created_at)
@@ -181,26 +186,29 @@ export class SQLiteStorageAdapter implements StoragePort {
 		return rows.map((r) => rowToFact(r));
 	}
 
-	async invalidateFact(factId: string, invalidAt: Date): Promise<void> {
+	async invalidateFact(userId: string, factId: string, invalidAt: Date): Promise<void> {
 		this.db
-			.prepare("UPDATE semantic_facts SET invalid_at = ? WHERE id = ?")
-			.run(invalidAt.getTime(), factId);
+			.prepare("UPDATE semantic_facts SET invalid_at = ? WHERE id = ? AND user_id = ?")
+			.run(invalidAt.getTime(), factId, userId);
 	}
 
-	async updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void> {
+	async updateFact(
+		userId: string,
+		factId: string,
+		updates: Partial<Omit<SemanticFact, "id" | "userId">>,
+	): Promise<void> {
 		const row = this.db
-			.prepare("SELECT * FROM semantic_facts WHERE id = ?")
-			.get(factId) as FactRow | null;
+			.prepare("SELECT * FROM semantic_facts WHERE id = ? AND user_id = ?")
+			.get(factId, userId) as FactRow | null;
 		if (!row) {
 			return;
 		}
 
-		const current = rowToFact(row);
-		const merged = { ...current, ...updates };
-
+		const original = rowToFact(row);
+		const merged = { ...original, ...updates, id: original.id, userId: original.userId };
 		this.db
 			.prepare(
-				`UPDATE semantic_facts SET user_id = ?, category = ?, fact = ?, keywords = ?, source_episodic_ids = ?, embedding = ?, valid_at = ?, invalid_at = ?, created_at = ? WHERE id = ?`,
+				`UPDATE semantic_facts SET user_id = ?, category = ?, fact = ?, keywords = ?, source_episodic_ids = ?, embedding = ?, valid_at = ?, invalid_at = ?, created_at = ? WHERE id = ? AND user_id = ?`,
 			)
 			.run(
 				merged.userId,
@@ -213,6 +221,7 @@ export class SQLiteStorageAdapter implements StoragePort {
 				merged.invalidAt?.getTime() ?? null,
 				merged.createdAt.getTime(),
 				factId,
+				userId,
 			);
 	}
 
@@ -256,88 +265,4 @@ export class SQLiteStorageAdapter implements StoragePort {
 			.all(userId, pattern, pattern, safeLim) as FactRow[];
 		return rows.map((r) => rowToFact(r));
 	}
-}
-
-interface EpisodeRow {
-	id: string;
-	user_id: string;
-	title: string;
-	summary: string;
-	messages: string;
-	embedding: string;
-	surprise: number;
-	stability: number;
-	difficulty: number;
-	start_at: number;
-	end_at: number;
-	created_at: number;
-	last_reviewed_at: number | null;
-	consolidated_at: number | null;
-}
-
-function rowToEpisode(row: EpisodeRow): Episode {
-	const rawMessages = parseJson<Record<string, unknown>[]>(row.messages, "messages");
-	const messages: ChatMessage[] = rawMessages.map((m) => ({
-		role: m.role as ChatMessage["role"],
-		content: m.content as string,
-		...(m.timestamp ? { timestamp: new Date(m.timestamp as string) } : {}),
-	}));
-	return {
-		id: row.id,
-		userId: row.user_id,
-		title: row.title,
-		summary: row.summary,
-		messages,
-		embedding: parseJson<number[]>(row.embedding, "embedding"),
-		surprise: row.surprise,
-		stability: row.stability,
-		difficulty: row.difficulty,
-		startAt: new Date(row.start_at),
-		endAt: new Date(row.end_at),
-		createdAt: new Date(row.created_at),
-		lastReviewedAt: row.last_reviewed_at === null ? null : new Date(row.last_reviewed_at),
-		consolidatedAt: row.consolidated_at === null ? null : new Date(row.consolidated_at),
-	};
-}
-
-interface FactRow {
-	id: string;
-	user_id: string;
-	category: string;
-	fact: string;
-	keywords: string;
-	source_episodic_ids: string;
-	embedding: string;
-	valid_at: number;
-	invalid_at: number | null;
-	created_at: number;
-}
-
-function rowToFact(row: FactRow): SemanticFact {
-	return {
-		id: row.id,
-		userId: row.user_id,
-		category: row.category as SemanticFact["category"],
-		fact: row.fact,
-		keywords: parseJson<string[]>(row.keywords, "keywords"),
-		sourceEpisodicIds: parseJson<string[]>(row.source_episodic_ids, "source_episodic_ids"),
-		embedding: parseJson<number[]>(row.embedding, "embedding"),
-		validAt: new Date(row.valid_at),
-		invalidAt: row.invalid_at === null ? null : new Date(row.invalid_at),
-		createdAt: new Date(row.created_at),
-	};
-}
-
-interface MessageRow {
-	role: string;
-	content: string;
-	timestamp: number | null;
-}
-
-function rowToMessage(row: MessageRow): ChatMessage {
-	return {
-		role: row.role as ChatMessage["role"],
-		content: row.content,
-		...(row.timestamp === null ? {} : { timestamp: new Date(row.timestamp) }),
-	};
 }

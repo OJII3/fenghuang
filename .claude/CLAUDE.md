@@ -60,7 +60,7 @@ For more details, see docs/ARCHITECTURE.md
 ```
 src/
 ├── core/           # Core Domain (no external deps)
-│   ├── domain/     # Entities (Episode, SemanticFact, FSRSCard)
+│   ├── domain/     # Entities, types, utils
 │   ├── segmenter.ts    # Event segmentation
 │   ├── episodic.ts     # Episodic memory service
 │   ├── consolidation.ts # Semantic consolidation pipeline
@@ -69,7 +69,7 @@ src/
 ├── ports/          # Interface definitions (LLMPort, StoragePort)
 ├── adapters/       # External dependencies
 │   ├── llm/        # vercel-ai, utils, (anthropic)
-│   └── storage/    # sqlite, in-memory
+│   └── storage/    # sqlite, sqlite-rows, in-memory, parse-helpers
 └── index.ts        # Public API + DI
 ```
 
