@@ -1,6 +1,6 @@
 ---
 allowed-tools: Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*)
-description: Review a pull request with specialized agents (architecture, code quality, test coverage, security)
+description: Review a pull request with specialized agents (architecture, code quality, test coverage, security, documentation)
 ---
 
 Review the pull request specified by $ARGUMENTS (PR number or URL).
@@ -16,7 +16,7 @@ gh pr diff $ARGUMENTS
 
 ## Step 2: Launch Review Agents in Parallel
 
-Use the Task tool to launch ALL FOUR review agents simultaneously. Each agent should receive:
+Use the Task tool to launch ALL FIVE review agents simultaneously. Each agent should receive:
 - The full PR diff
 - The list of changed files
 - The PR title and description for context
@@ -27,6 +27,7 @@ Launch these agents in parallel:
 2. **code-quality-reviewer**: Check code quality, TypeScript practices, and RUNBOOK invariant rule compliance
 3. **test-coverage-reviewer**: Check test coverage, Bun test patterns, and in-memory adapter test strategy
 4. **security-code-reviewer**: Check for secrets leakage, prompt injection risks, and input validation
+5. **documentation-reviewer**: Check CLAUDE.md accuracy, docs/*.md sync with code, and inline comment quality
 
 For each agent, provide this context in the prompt:
 - The PR diff output
@@ -74,6 +75,9 @@ The summary comment should follow this format:
 [Key findings or "No issues found"]
 
 ### Security Review
+[Key findings or "No issues found"]
+
+### Documentation Review
 [Key findings or "No issues found"]
 
 ### Overall Assessment
