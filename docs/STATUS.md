@@ -6,9 +6,9 @@
 
 ## 2. 現在の真実（Project Truth）
 
-- **M2: Segmenter + EpisodicMemory + SQLite adapter + opencode adapter + Vercel AI adapter は完了**
+- **M2: Segmenter + EpisodicMemory + SQLite adapter + Vercel AI adapter は完了**
 - M1 の Core ドメイン + In-memory adapter に加え、Core サービスと外部 adapter が実装済み
-- テスト 152 件が全通過（`bun test`）
+- テスト 143 件が全通過（`bun test`）— opencode adapter 削除により 9 件減
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -26,7 +26,7 @@
 2. ライブラリとして提供（HTTP サーバーなし）
 3. エピソード記憶 + 意味記憶の両方を実装
 4. Storage MVP: SQLite（bun:sqlite）
-5. LLM MVP: opencode adapter
+5. LLM MVP: Vercel AI SDK adapter
 6. plast-mem の FSRS / イベントセグメンテーション設計を参考にする
 
 ## 4. M1 成果物
@@ -56,22 +56,18 @@
 | Segmenter テスト      | `tests/core/segmenter.test.ts`               | 完了（17件） |
 | EpisodicMemory        | `src/core/episodic.ts`                       | 完了         |
 | EpisodicMemory テスト | `tests/core/episodic.test.ts`                | 完了（16件） |
-| opencode LLM adapter  | `src/adapters/llm/opencode.ts`               | 完了         |
 | 統合テスト            | `tests/integration/segmenter-sqlite.test.ts` | 完了（6件）  |
 | Public API 更新       | `src/index.ts`                               | 完了         |
 | Vercel AI LLM adapter | `src/adapters/llm/vercel-ai.ts`              | 完了         |
 | Vercel AI テスト      | `tests/adapters/llm/vercel-ai.test.ts`       | 完了（18件） |
-| opencode テスト       | `tests/adapters/llm/opencode.test.ts`        | 完了（9件）  |
 | Public API テスト     | `tests/index.test.ts`                        | 完了（1件）  |
 
 ### M2 設計上の決定
 
-1. **Embedding**: opencode SDK に embedding API がないため、`EmbedFn` をコンストラクタ注入する設計
-2. **opencode chatStructured**: SDK に `format` パラメータがないため、プロンプトで JSON 出力を指示し `schema.parse()` でバリデーション
-3. **Vercel AI adapter**: `generateText` + `embed` をネイティブ使用。`chatStructured` は `generateObject` 不使用（fenghuang の `Schema<T>` は Zod ではないため、opencode と同様のプロンプトベース JSON + `schema.parse()`）
-4. **SQLite 検索**: M2 では LIKE 検索で実装。FTS5 は M4（ハイブリッド検索）で導入予定
-5. **EpisodicMemory**: `StoragePort` のみに依存（`LLMPort` は不要）
-6. **Segmenter のフロー**: `addMessage()` → キュー追加 → 閾値チェック → LLM でセグメント判定 → Episode 生成・保存
+1. **Vercel AI adapter**: `generateText` + `embed` をネイティブ使用。`chatStructured` はプロンプトベース JSON + `schema.parse()` でバリデーション
+2. **SQLite 検索**: M2 では LIKE 検索で実装。FTS5 は M4（ハイブリッド検索）で導入予定
+3. **EpisodicMemory**: `StoragePort` のみに依存（`LLMPort` は不要）
+4. **Segmenter のフロー**: `addMessage()` → キュー追加 → 閾値チェック → LLM でセグメント判定 → Episode 生成・保存
 
 ## 6. 直近タスク（M3）
 
@@ -86,7 +82,19 @@
 ## 8. リスクメモ
 
 1. bun:sqlite でベクトル検索をどう実現するか要調査（R1）
-2. opencode SDK の API 安定性を確認する必要あり（R2）— M2 で `@opencode-ai/sdk@^1.2.20` を採用
+
+## 8.5 セキュリティレビュー指摘事項（PR #6 レビューで検出、既存コードベース対象）
+
+| 優先度  | 項目                                                                                     |
+| ------- | ---------------------------------------------------------------------------------------- |
+| WARNING | ID ベースのストレージ操作（`getEpisodeById` 等）に userId 検証がなくテナント分離が不完全  |
+| WARNING | `saveEpisode`/`saveFact` で引数 userId とエンティティ userId の不一致を検証していない     |
+| WARNING | Segmenter のプロンプトで `</conversation>` タグのエスケープが未実装（インジェクションリスク） |
+| WARNING | SQLite から解析した JSON（messages, embedding）の構造検証が不足                           |
+| WARNING | `parseJson` のエラーメッセージに生データ（最大100文字）が含まれ漏洩リスクあり             |
+| INFO    | LLM API 呼び出しのレート制限・コスト制御が未実装                                         |
+| INFO    | InMemoryStorageAdapter の search limit バリデーションが SQLite と不統一                   |
+| INFO    | `cleanJsonResponse` ユーティリティの直接テスト（`utils.test.ts`）が未作成                 |
 
 ## 9. 再開時コンテキスト
 

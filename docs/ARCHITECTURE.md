@@ -33,9 +33,9 @@
     ┌──────┴──────┐    ┌──────┴──────┐
     │  Adapters   │    │  Adapters   │
     ├─────────────┤    ├─────────────┤
-    │ opencode    │    │ SQLite      │
-    │ Vercel AI   │    │ (Postgres)  │
-    │ (Anthropic) │    │ in-memory   │
+    │ Vercel AI   │    │ SQLite      │
+    │ (Anthropic) │    │ (Postgres)  │
+    │             │    │ in-memory   │
     └─────────────┘    └─────────────┘
 
 () = 将来追加予定
@@ -62,7 +62,6 @@ src/
 │
 ├── adapters/                # Adapter（外部依存はここだけ）
 │   ├── llm/
-│   │   ├── opencode.ts     # opencode LLM adapter
 │   │   ├── vercel-ai.ts    # Vercel AI SDK adapter
 │   │   └── utils.ts        # LLM adapter 共有ユーティリティ
 │   └── storage/
@@ -238,7 +237,6 @@ tests/
 │   └── segmenter-sqlite.test.ts
 ├── adapters/
 │   ├── llm/
-│   │   ├── opencode.test.ts
 │   │   └── vercel-ai.test.ts
 │   └── storage/
 │       ├── sqlite.test.ts
@@ -254,5 +252,4 @@ tests/
 | Hexagonal Architecture                    | LLM/Storage の差し替え容易性、テスト容易性                       |
 | SQLite（bun:sqlite）                      | 組み込みで依存なし、vicissitude と同じ Bun ランタイム            |
 | FSRS アルゴリズム                         | plast-mem で実証済み、記憶の減衰モデルとして自然                 |
-| opencode を最初の LLM adapter             | vicissitude で既に使用中                                         |
-| Vercel AI SDK を第二の LLM adapter        | Embedding / Structured output ネイティブ対応、プロバイダー非依存 |
+| Vercel AI SDK を LLM adapter              | Embedding / Structured output ネイティブ対応、プロバイダー非依存 |

@@ -23,7 +23,7 @@ Core Domain (Segmenter, EpisodicMemory, FSRS, Consolidation, Retrieval)
     LLMPort            StoragePort
        │                    │
    Adapters             Adapters
-   (opencode)           (SQLite, in-memory)
+   (Vercel AI)          (SQLite, in-memory)
 ```
 
 ## Usage

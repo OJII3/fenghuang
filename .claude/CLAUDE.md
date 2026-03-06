@@ -2,7 +2,7 @@
 
 A long-term memory layer designed for [vicissitude](https://github.com/ojii3/vicissitude).
 
-Inspired by [plast-mem](https://github.com/moeru-ai/plast-mem). Built with Bun + TypeScript. Currently, opencode and Vercel AI SDK are supported as LLM backends.
+Inspired by [plast-mem](https://github.com/moeru-ai/plast-mem). Built with Bun + TypeScript. Vercel AI SDK is used as the LLM backend.
 
 ## Documentation
 
@@ -49,9 +49,9 @@ For more details, see docs/ARCHITECTURE.md
     ┌──────┴──────┐    ┌──────┴──────┐
     │  Adapters   │    │  Adapters   │
     ├─────────────┤    ├─────────────┤
-    │ opencode    │    │ SQLite      │
-    │ Vercel AI   │    │ (Postgres)  │
-    │ (Anthropic) │    │ in-memory   │
+    │ Vercel AI   │    │ SQLite      │
+    │ (Anthropic) │    │ (Postgres)  │
+    │             │    │ in-memory   │
     └─────────────┘    └─────────────┘
 ```
 
@@ -67,7 +67,7 @@ src/
 │   └── retrieval.ts    # Memory retrieval service
 ├── ports/          # Interface definitions (LLMPort, StoragePort)
 ├── adapters/       # External dependencies
-│   ├── llm/        # opencode, vercel-ai, utils, (anthropic)
+│   ├── llm/        # vercel-ai, utils, (anthropic)
 │   └── storage/    # sqlite, in-memory
 └── index.ts        # Public API + DI
 ```
