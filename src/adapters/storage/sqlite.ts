@@ -5,21 +5,8 @@ import type { FSRSCard } from "../../core/domain/fsrs.ts";
 import type { SemanticFact } from "../../core/domain/semantic-fact.ts";
 import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
-import {
-	parseJson,
-	validateCategory,
-	validateEmbedding,
-	validateMessages,
-	validateRole,
-	validateStringArray,
-} from "./parse-helpers.ts";
-
-function escapeLike(s: string): string {
-	return s
-		.replaceAll("\\", String.raw`\\`)
-		.replaceAll("%", String.raw`\%`)
-		.replaceAll("_", String.raw`\_`);
-}
+import type { EpisodeRow, FactRow, MessageRow } from "./sqlite-rows.ts";
+import { escapeLike, rowToEpisode, rowToFact, rowToMessage } from "./sqlite-rows.ts";
 
 /** SQLite storage adapter using bun:sqlite */
 export class SQLiteStorageAdapter implements StoragePort {
@@ -271,80 +258,4 @@ export class SQLiteStorageAdapter implements StoragePort {
 			.all(userId, pattern, pattern, safeLim) as FactRow[];
 		return rows.map((r) => rowToFact(r));
 	}
-}
-interface EpisodeRow {
-	id: string;
-	user_id: string;
-	title: string;
-	summary: string;
-	messages: string;
-	embedding: string;
-	surprise: number;
-	stability: number;
-	difficulty: number;
-	start_at: number;
-	end_at: number;
-	created_at: number;
-	last_reviewed_at: number | null;
-	consolidated_at: number | null;
-}
-
-function rowToEpisode(row: EpisodeRow): Episode {
-	return {
-		id: row.id,
-		userId: row.user_id,
-		title: row.title,
-		summary: row.summary,
-		messages: validateMessages(parseJson(row.messages, "messages")),
-		embedding: validateEmbedding(parseJson(row.embedding, "embedding")),
-		surprise: row.surprise,
-		stability: row.stability,
-		difficulty: row.difficulty,
-		startAt: new Date(row.start_at),
-		endAt: new Date(row.end_at),
-		createdAt: new Date(row.created_at),
-		lastReviewedAt: row.last_reviewed_at === null ? null : new Date(row.last_reviewed_at),
-		consolidatedAt: row.consolidated_at === null ? null : new Date(row.consolidated_at),
-	};
-}
-interface FactRow {
-	id: string;
-	user_id: string;
-	category: string;
-	fact: string;
-	keywords: string;
-	source_episodic_ids: string;
-	embedding: string;
-	valid_at: number;
-	invalid_at: number | null;
-	created_at: number;
-}
-function rowToFact(row: FactRow): SemanticFact {
-	return {
-		id: row.id,
-		userId: row.user_id,
-		category: validateCategory(row.category),
-		fact: row.fact,
-		keywords: validateStringArray(parseJson(row.keywords, "keywords"), "keywords"),
-		sourceEpisodicIds: validateStringArray(
-			parseJson(row.source_episodic_ids, "source_episodic_ids"),
-			"source_episodic_ids",
-		),
-		embedding: validateEmbedding(parseJson(row.embedding, "embedding")),
-		validAt: new Date(row.valid_at),
-		invalidAt: row.invalid_at === null ? null : new Date(row.invalid_at),
-		createdAt: new Date(row.created_at),
-	};
-}
-interface MessageRow {
-	role: string;
-	content: string;
-	timestamp: number | null;
-}
-function rowToMessage(row: MessageRow): ChatMessage {
-	return {
-		role: validateRole(row.role),
-		content: row.content,
-		...(row.timestamp === null ? {} : { timestamp: new Date(row.timestamp) }),
-	};
 }
