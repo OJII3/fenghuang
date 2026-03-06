@@ -68,6 +68,7 @@ src/
 │   │   └── utils.ts        # LLM adapter 共有ユーティリティ
 │   └── storage/
 │       ├── sqlite.ts       # SQLite adapter（bun:sqlite）
+│       ├── sqlite-schema.ts # DDL（テーブル・インデックス・トリガー作成）
 │       ├── sqlite-rows.ts  # Row 型定義 + 行変換関数
 │       ├── in-memory.ts    # In-memory adapter（テスト用）
 │       ├── parse-helpers.ts # JSON パース・バリデーションヘルパー

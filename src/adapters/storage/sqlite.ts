@@ -7,6 +7,7 @@ import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
 import type { EpisodeRow, FactRow, MessageRow } from "./sqlite-rows.ts";
 import { rowToEpisode, rowToFact, rowToMessage } from "./sqlite-rows.ts";
+import { createAllTables } from "./sqlite-schema.ts";
 import { cosineSimilarity } from "./vector-math.ts";
 
 function escapeLike(s: string): string {
@@ -45,56 +46,11 @@ export class SQLiteStorageAdapter implements StoragePort {
 		this.db = new Database(path);
 		this.db.exec("PRAGMA journal_mode = WAL");
 		this.db.exec("PRAGMA foreign_keys = ON");
-		this.createTables();
+		createAllTables(this.db);
 	}
 
 	close(): void {
 		this.db.close();
-	}
-
-	private createTables(): void {
-		this.createEpisodeTables();
-		this.createFactTables();
-		this.createMessageQueue();
-	}
-
-	private createEpisodeTables(): void {
-		this.db.exec(`CREATE TABLE IF NOT EXISTS episodes (
-			id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, summary TEXT NOT NULL,
-			messages TEXT NOT NULL, embedding TEXT NOT NULL, surprise REAL NOT NULL,
-			stability REAL NOT NULL, difficulty REAL NOT NULL, start_at INTEGER NOT NULL,
-			end_at INTEGER NOT NULL, created_at INTEGER NOT NULL, last_reviewed_at INTEGER,
-			consolidated_at INTEGER)`);
-		this.db.exec("CREATE INDEX IF NOT EXISTS idx_episodes_user_id ON episodes(user_id)");
-		this.db.exec(
-			"CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts USING fts5(id UNINDEXED, title, summary)",
-		);
-		this.db.exec(`CREATE TRIGGER IF NOT EXISTS episodes_fts_ai AFTER INSERT ON episodes BEGIN
-			INSERT INTO episodes_fts(id, title, summary) VALUES (new.id, new.title, new.summary); END`);
-		this.db.exec(`CREATE TRIGGER IF NOT EXISTS episodes_fts_ad AFTER DELETE ON episodes BEGIN
-			DELETE FROM episodes_fts WHERE id = old.id; END`);
-	}
-
-	private createFactTables(): void {
-		this.db.exec(`CREATE TABLE IF NOT EXISTS semantic_facts (
-			id TEXT PRIMARY KEY, user_id TEXT NOT NULL, category TEXT NOT NULL, fact TEXT NOT NULL,
-			keywords TEXT NOT NULL, source_episodic_ids TEXT NOT NULL, embedding TEXT NOT NULL,
-			valid_at INTEGER NOT NULL, invalid_at INTEGER, created_at INTEGER NOT NULL)`);
-		this.db.exec("CREATE INDEX IF NOT EXISTS idx_facts_user_id ON semantic_facts(user_id)");
-		this.db.exec(
-			"CREATE VIRTUAL TABLE IF NOT EXISTS semantic_facts_fts USING fts5(id UNINDEXED, fact, keywords)",
-		);
-		this.db.exec(`CREATE TRIGGER IF NOT EXISTS facts_fts_ai AFTER INSERT ON semantic_facts BEGIN
-			INSERT INTO semantic_facts_fts(id, fact, keywords) VALUES (new.id, new.fact, new.keywords); END`);
-		this.db.exec(`CREATE TRIGGER IF NOT EXISTS facts_fts_ad AFTER DELETE ON semantic_facts BEGIN
-			DELETE FROM semantic_facts_fts WHERE id = old.id; END`);
-	}
-
-	private createMessageQueue(): void {
-		this.db.exec(`CREATE TABLE IF NOT EXISTS message_queue (
-			id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL,
-			role TEXT NOT NULL, content TEXT NOT NULL, timestamp INTEGER)`);
-		this.db.exec("CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)");
 	}
 
 	async saveEpisode(userId: string, episode: Episode): Promise<void> {
