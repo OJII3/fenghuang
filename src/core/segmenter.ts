@@ -205,7 +205,7 @@ Respond with JSON only: {"segments": [...]}`;
 const segmentationSchema: Schema<SegmentationOutput> = {
 	parse(data: unknown): SegmentationOutput {
 		if (typeof data !== "object" || data === null) {
-			throw new Error("Expected object");
+			throw new TypeError("Expected object");
 		}
 		const obj = data as Record<string, unknown>;
 		if (!Array.isArray(obj["segments"])) {
@@ -245,13 +245,13 @@ function validateSegmentFields(seg: Record<string, unknown>, i: number): void {
 	validateIndexBounds(seg["startIndex"] as number, seg["endIndex"] as number, i);
 
 	if (!VALID_SURPRISE.has(seg["surprise"] as string)) {
-		throw new Error(`segments[${i}].surprise: expected low, high, or extremely_high`);
+		throw new TypeError(`segments[${i}].surprise: expected low, high, or extremely_high`);
 	}
 }
 
 function parseSegment(s: unknown, i: number): SegmentResult {
 	if (typeof s !== "object" || s === null) {
-		throw new Error(`segments[${i}]: expected object`);
+		throw new TypeError(`segments[${i}]: expected object`);
 	}
 	const seg = s as Record<string, unknown>;
 	validateSegmentFields(seg, i);
