@@ -69,7 +69,7 @@ src/
 ├── ports/          # Interface definitions (LLMPort, StoragePort)
 ├── adapters/       # External dependencies
 │   ├── llm/        # vercel-ai, utils, (anthropic)
-│   └── storage/    # sqlite, sqlite-rows, in-memory, parse-helpers, vector-math
+│   └── storage/    # sqlite, sqlite-schema, sqlite-rows, in-memory, parse-helpers, vector-math
 └── index.ts        # Public API + DI
 ```
 

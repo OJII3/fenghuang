@@ -116,7 +116,7 @@
 
 ## 7.5 技術的負債
 
-- `src/adapters/storage/sqlite.ts` が max-lines (350行制限) ギリギリで、FTS5 DDL の圧縮等で対処中。機能追加時にオーバーフローする可能性が高いため、DDL を別ファイル（例: `sqlite-schema.ts`）に分離するリファクタリングを検討する
+- ~~`sqlite.ts` の max-lines 問題~~ → 解決済み。DDL を `sqlite-schema.ts` に分離し、`sqlite.ts` を約 284 行に削減
 
 ## 8. ブロッカー
 
