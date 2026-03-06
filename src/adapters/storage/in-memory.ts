@@ -82,7 +82,11 @@ export class InMemoryStorageAdapter implements StoragePort {
 		fact.invalidAt = invalidAt;
 	}
 
-	async updateFact(userId: string, factId: string, updates: Partial<SemanticFact>): Promise<void> {
+	async updateFact(
+		userId: string,
+		factId: string,
+		updates: Partial<Omit<SemanticFact, "id" | "userId">>,
+	): Promise<void> {
 		const fact = this.facts.get(factId);
 		if (!fact || fact.userId !== userId) {
 			return;

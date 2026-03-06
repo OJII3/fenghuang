@@ -7,16 +7,19 @@ import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
 import {
 	parseJson,
+	validateCategory,
 	validateEmbedding,
 	validateMessages,
+	validateRole,
 	validateStringArray,
 } from "./parse-helpers.ts";
 
-/* eslint-disable unicorn/prefer-string-raw -- backslash-heavy escaping is clearer with regular strings */
 function escapeLike(s: string): string {
-	return s.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+	return s
+		.replaceAll("\\", String.raw`\\`)
+		.replaceAll("%", String.raw`\%`)
+		.replaceAll("_", String.raw`\_`);
 }
-/* eslint-enable unicorn/prefer-string-raw */
 
 /** SQLite storage adapter using bun:sqlite */
 export class SQLiteStorageAdapter implements StoragePort {
@@ -195,7 +198,11 @@ export class SQLiteStorageAdapter implements StoragePort {
 			.run(invalidAt.getTime(), factId, userId);
 	}
 
-	async updateFact(userId: string, factId: string, updates: Partial<SemanticFact>): Promise<void> {
+	async updateFact(
+		userId: string,
+		factId: string,
+		updates: Partial<Omit<SemanticFact, "id" | "userId">>,
+	): Promise<void> {
 		const row = this.db
 			.prepare("SELECT * FROM semantic_facts WHERE id = ? AND user_id = ?")
 			.get(factId, userId) as FactRow | null;
@@ -203,7 +210,8 @@ export class SQLiteStorageAdapter implements StoragePort {
 			return;
 		}
 
-		const merged = { ...rowToFact(row), ...updates };
+		const original = rowToFact(row);
+		const merged = { ...original, ...updates, id: original.id, userId: original.userId };
 		this.db
 			.prepare(
 				`UPDATE semantic_facts SET user_id = ?, category = ?, fact = ?, keywords = ?, source_episodic_ids = ?, embedding = ?, valid_at = ?, invalid_at = ?, created_at = ? WHERE id = ? AND user_id = ?`,
@@ -264,7 +272,6 @@ export class SQLiteStorageAdapter implements StoragePort {
 		return rows.map((r) => rowToFact(r));
 	}
 }
-
 interface EpisodeRow {
 	id: string;
 	user_id: string;
@@ -288,8 +295,8 @@ function rowToEpisode(row: EpisodeRow): Episode {
 		userId: row.user_id,
 		title: row.title,
 		summary: row.summary,
-		messages: validateMessages(parseJson<unknown>(row.messages, "messages")),
-		embedding: validateEmbedding(parseJson<unknown>(row.embedding, "embedding")),
+		messages: validateMessages(parseJson(row.messages, "messages")),
+		embedding: validateEmbedding(parseJson(row.embedding, "embedding")),
 		surprise: row.surprise,
 		stability: row.stability,
 		difficulty: row.difficulty,
@@ -300,7 +307,6 @@ function rowToEpisode(row: EpisodeRow): Episode {
 		consolidatedAt: row.consolidated_at === null ? null : new Date(row.consolidated_at),
 	};
 }
-
 interface FactRow {
 	id: string;
 	user_id: string;
@@ -313,34 +319,31 @@ interface FactRow {
 	invalid_at: number | null;
 	created_at: number;
 }
-
 function rowToFact(row: FactRow): SemanticFact {
 	return {
 		id: row.id,
 		userId: row.user_id,
-		category: row.category as SemanticFact["category"],
+		category: validateCategory(row.category),
 		fact: row.fact,
-		keywords: validateStringArray(parseJson<unknown>(row.keywords, "keywords"), "keywords"),
+		keywords: validateStringArray(parseJson(row.keywords, "keywords"), "keywords"),
 		sourceEpisodicIds: validateStringArray(
-			parseJson<unknown>(row.source_episodic_ids, "source_episodic_ids"),
+			parseJson(row.source_episodic_ids, "source_episodic_ids"),
 			"source_episodic_ids",
 		),
-		embedding: validateEmbedding(parseJson<unknown>(row.embedding, "embedding")),
+		embedding: validateEmbedding(parseJson(row.embedding, "embedding")),
 		validAt: new Date(row.valid_at),
 		invalidAt: row.invalid_at === null ? null : new Date(row.invalid_at),
 		createdAt: new Date(row.created_at),
 	};
 }
-
 interface MessageRow {
 	role: string;
 	content: string;
 	timestamp: number | null;
 }
-
 function rowToMessage(row: MessageRow): ChatMessage {
 	return {
-		role: row.role as ChatMessage["role"],
+		role: validateRole(row.role),
 		content: row.content,
 		...(row.timestamp === null ? {} : { timestamp: new Date(row.timestamp) }),
 	};

@@ -18,7 +18,11 @@ export interface StoragePort {
 	getFacts(userId: string): Promise<SemanticFact[]>;
 	getFactsByCategory(userId: string, category: FactCategory): Promise<SemanticFact[]>;
 	invalidateFact(userId: string, factId: string, invalidAt: Date): Promise<void>;
-	updateFact(userId: string, factId: string, updates: Partial<SemanticFact>): Promise<void>;
+	updateFact(
+		userId: string,
+		factId: string,
+		updates: Partial<Omit<SemanticFact, "id" | "userId">>,
+	): Promise<void>;
 
 	// Message queue
 	pushMessage(userId: string, message: ChatMessage): Promise<void>;
