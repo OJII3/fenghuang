@@ -14,15 +14,15 @@ Inspired by [plast-mem](https://github.com/moeru-ai/plast-mem). Built with Bun +
 
 ## Commands
 
-| Command        | Description                          |
-| -------------- | ------------------------------------ |
-| `bun test`     | Run tests                            |
-| `bun build`    | Build                                |
-| `nr lint`      | Run oxlint                           |
-| `nr lint:fix`  | Run oxlint with auto-fix             |
-| `nr fmt`       | Format with oxfmt                    |
-| `nr fmt:check` | Check formatting (CI)                |
-| `nr check`     | Run oxlint + oxfmt + tsc --noEmit    |
+| Command        | Description                             |
+| -------------- | --------------------------------------- |
+| `bun test`     | Run tests                               |
+| `bun build`    | Build                                   |
+| `nr lint`      | Run oxlint                              |
+| `nr lint:fix`  | Run oxlint with auto-fix                |
+| `nr fmt`       | Format with oxfmt                       |
+| `nr fmt:check` | Check formatting (CI)                   |
+| `nr check`     | Run oxlint + oxfmt + tsc --noEmit       |
 | `/review-pr`   | Run PR review with 5 specialized agents |
 
 ## Architecture Overview: Hexagonal Architecture (Ports & Adapters)
@@ -83,12 +83,12 @@ src/
 
 The project includes five specialized Claude Code sub-agents for PR review, located in `.claude/agents/`:
 
-| Agent | File | Focus |
-|-------|------|-------|
-| architecture-reviewer | `.claude/agents/architecture-reviewer.md` | Hexagonal Architecture compliance |
-| code-quality-reviewer | `.claude/agents/code-quality-reviewer.md` | TypeScript quality, RUNBOOK invariants |
-| documentation-reviewer | `.claude/agents/documentation-reviewer.md` | Doc-code sync, CLAUDE.md accuracy |
+| Agent                  | File                                       | Focus                                       |
+| ---------------------- | ------------------------------------------ | ------------------------------------------- |
+| architecture-reviewer  | `.claude/agents/architecture-reviewer.md`  | Hexagonal Architecture compliance           |
+| code-quality-reviewer  | `.claude/agents/code-quality-reviewer.md`  | TypeScript quality, RUNBOOK invariants      |
+| documentation-reviewer | `.claude/agents/documentation-reviewer.md` | Doc-code sync, CLAUDE.md accuracy           |
 | security-code-reviewer | `.claude/agents/security-code-reviewer.md` | Secrets, prompt injection, input validation |
-| test-coverage-reviewer | `.claude/agents/test-coverage-reviewer.md` | Test coverage, in-memory adapter strategy |
+| test-coverage-reviewer | `.claude/agents/test-coverage-reviewer.md` | Test coverage, in-memory adapter strategy   |
 
 Use the `/review-pr` command to run all agents against a PR.

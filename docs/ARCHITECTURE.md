@@ -126,44 +126,44 @@ export interface StoragePort {
 
 ### 6.1 Episode
 
-| フィールド     | 型              | 説明                             |
-| -------------- | --------------- | -------------------------------- |
-| id             | string        | UUID                             |
-| userId         | string        | ユーザー識別子                   |
-| title          | string        | エピソードのタイトル（LLM 生成） |
-| summary        | string        | エピソードの要約（LLM 生成）     |
-| messages       | ChatMessage[] | 元のメッセージ列                 |
-| embedding      | number[]      | summary の埋め込みベクトル       |
-| surprise       | number        | 驚きスコア（0.0 - 1.0）          |
-| stability      | number        | FSRS stability パラメータ        |
-| difficulty     | number        | FSRS difficulty パラメータ       |
-| startAt        | Date          | エピソード開始時刻               |
-| endAt          | Date          | エピソード終了時刻               |
-| createdAt      | Date          | 作成日時                         |
-| lastReviewedAt | `Date \| null`  | 最後にレビューされた日時 |
-| consolidatedAt | `Date \| null`  | 意味記憶に統合された日時 |
+| フィールド     | 型             | 説明                             |
+| -------------- | -------------- | -------------------------------- |
+| id             | string         | UUID                             |
+| userId         | string         | ユーザー識別子                   |
+| title          | string         | エピソードのタイトル（LLM 生成） |
+| summary        | string         | エピソードの要約（LLM 生成）     |
+| messages       | ChatMessage[]  | 元のメッセージ列                 |
+| embedding      | number[]       | summary の埋め込みベクトル       |
+| surprise       | number         | 驚きスコア（0.0 - 1.0）          |
+| stability      | number         | FSRS stability パラメータ        |
+| difficulty     | number         | FSRS difficulty パラメータ       |
+| startAt        | Date           | エピソード開始時刻               |
+| endAt          | Date           | エピソード終了時刻               |
+| createdAt      | Date           | 作成日時                         |
+| lastReviewedAt | `Date \| null` | 最後にレビューされた日時         |
+| consolidatedAt | `Date \| null` | 意味記憶に統合された日時         |
 
 ### 6.2 SemanticFact
 
 | フィールド        | 型             | 説明                    |
 | ----------------- | -------------- | ----------------------- |
-| id                | string       | UUID                    |
-| userId            | string       | ユーザー識別子          |
-| category          | FactCategory | 事実のカテゴリ          |
-| fact              | string       | 事実の内容              |
-| keywords          | string[]     | キーワード              |
-| sourceEpisodicIds | string[]     | 出典エピソード ID       |
-| embedding         | number[]     | fact の埋め込みベクトル |
-| validAt           | Date         | 有効開始日時            |
-| invalidAt         | `Date \| null` | 無効化日時 |
-| createdAt         | Date         | 作成日時                |
+| id                | string         | UUID                    |
+| userId            | string         | ユーザー識別子          |
+| category          | FactCategory   | 事実のカテゴリ          |
+| fact              | string         | 事実の内容              |
+| keywords          | string[]       | キーワード              |
+| sourceEpisodicIds | string[]       | 出典エピソード ID       |
+| embedding         | number[]       | fact の埋め込みベクトル |
+| validAt           | Date           | 有効開始日時            |
+| invalidAt         | `Date \| null` | 無効化日時              |
+| createdAt         | Date           | 作成日時                |
 
 ### 6.3 FSRSCard
 
 | フィールド     | 型             | 説明               |
 | -------------- | -------------- | ------------------ |
-| stability      | number | 記憶の安定性 |
-| difficulty     | number | 学習難易度   |
+| stability      | number         | 記憶の安定性       |
+| difficulty     | number         | 学習難易度         |
 | lastReviewedAt | `Date \| null` | 最後のレビュー日時 |
 
 ## 7. 主要シーケンス

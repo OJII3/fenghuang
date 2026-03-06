@@ -12,6 +12,9 @@
 		"fmt:check": "oxfmt --check .",
 		"check": "oxlint --deny-warnings . && oxfmt --check . && tsc --noEmit"
 	},
+	"dependencies": {
+		"@opencode-ai/sdk": "^1.2.20"
+	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"oxfmt": "^0.36.0",
@@ -19,8 +22,5 @@
 	},
 	"peerDependencies": {
 		"typescript": "^5"
-	},
-	"dependencies": {
-		"@opencode-ai/sdk": "^1.2.20"
 	}
 }

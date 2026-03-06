@@ -17,6 +17,7 @@ gh pr diff $ARGUMENTS
 ## Step 2: Launch Review Agents in Parallel
 
 Use the Task tool to launch ALL FIVE review agents simultaneously. Each agent should receive:
+
 - The full PR diff
 - The list of changed files
 - The PR title and description for context
@@ -27,9 +28,10 @@ Launch these agents in parallel:
 2. **code-quality-reviewer**: Check code quality, TypeScript practices, and RUNBOOK invariant rule compliance
 3. **test-coverage-reviewer**: Check test coverage, Bun test patterns, and in-memory adapter test strategy
 4. **security-code-reviewer**: Check for secrets leakage, prompt injection risks, and input validation
-5. **documentation-reviewer**: Check CLAUDE.md accuracy, docs/*.md sync with code, and inline comment quality
+5. **documentation-reviewer**: Check CLAUDE.md accuracy, docs/\*.md sync with code, and inline comment quality
 
 For each agent, provide this context in the prompt:
+
 - The PR diff output
 - The list of changed files
 - Instruction to read full files as needed for context
@@ -45,6 +47,7 @@ After all agents complete, synthesize their findings into a unified review.
 For each CRITICAL or WARNING finding with a specific file and line:
 
 First, resolve the repository owner/name and PR number:
+
 ```
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 PR_NUMBER=$(gh pr view $ARGUMENTS --json number -q .number)
@@ -52,6 +55,7 @@ COMMIT_ID=$(gh pr view $ARGUMENTS --json headRefOid -q .headRefOid)
 ```
 
 Then post inline comments:
+
 ```
 gh api repos/$REPO/pulls/$PR_NUMBER/comments \
   -f body="**[SEVERITY]** description" \
@@ -74,21 +78,27 @@ The summary comment should follow this format:
 ## PR Review Summary
 
 ### Architecture Review
+
 [Key findings or "No issues found"]
 
 ### Code Quality Review
+
 [Key findings or "No issues found"]
 
 ### Test Coverage Review
+
 [Key findings or "No issues found"]
 
 ### Security Review
+
 [Key findings or "No issues found"]
 
 ### Documentation Review
+
 [Key findings or "No issues found"]
 
 ### Overall Assessment
+
 - **CRITICAL issues**: N
 - **Warnings**: N
 - **Info/Suggestions**: N
@@ -96,7 +106,8 @@ The summary comment should follow this format:
 [Overall recommendation: Approve / Request Changes / Needs Discussion]
 
 ---
-*Reviewed by fenghuang PR Review Agents*
+
+_Reviewed by fenghuang PR Review Agents_
 ```
 
 ## Important Notes

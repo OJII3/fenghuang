@@ -50,6 +50,7 @@ The most important architectural rule: **dependencies flow inward only**.
 - `src/index.ts` (assembly) → MAY import from all layers (DI composition root)
 
 **How to verify:**
+
 ```
 # Check Core for forbidden imports (any non-relative import is a violation)
 Grep in src/core/ for: import.*from\s+['"](?!\.)
@@ -62,17 +63,20 @@ Grep in src/adapters/ for: import.*from.*core/(segmenter|episodic|consolidation|
 ### 2. Port Interface Integrity
 
 When a Port interface (`src/ports/`) is modified:
+
 - ALL adapters implementing that Port MUST be updated
 - Verify with: find all files in `src/adapters/` that reference the changed Port
 - Check that method signatures match exactly
 
 **Current Ports:**
+
 - `LLMPort`: `chat()`, `chatStructured()`, `embed()`
 - `StoragePort`: episode CRUD, semantic fact CRUD, message queue, search operations
 
 ### 3. Adapter Compliance
 
 Each adapter must:
+
 - Implement exactly one Port interface
 - Contain ALL external dependencies (no leaking into Core)
 - Be independently replaceable without modifying Core
@@ -81,6 +85,7 @@ Each adapter must:
 ### 4. DI Pattern Verification
 
 Assembly happens in `src/index.ts`:
+
 - The caller decides which adapters to use
 - No hardcoded adapter references in Core
 - Constructor/function injection preferred over service locators
@@ -89,11 +94,13 @@ Assembly happens in `src/index.ts`:
 ### 5. Domain Model Integrity
 
 Core domain entities:
+
 - `Episode`: id, userId, title, summary, messages, embedding, surprise, stability, difficulty, startAt, endAt, createdAt, lastReviewedAt, consolidatedAt
 - `SemanticFact`: id, userId, category, fact, keywords, sourceEpisodicIds, embedding, validAt, invalidAt, createdAt
 - `FSRSCard`: stability, difficulty, lastReviewedAt
 
 Check that:
+
 - Domain entities are plain data (no external dependencies)
 - Business logic stays in Core services, not in Adapters
 - FSRS parameters match the target retention defined in SPEC.md (`DESIRED_RETENTION`)
@@ -121,6 +128,7 @@ For each issue found:
 ```
 
 Severity levels:
+
 - **CRITICAL**: Dependency direction violation, Port contract break
 - **WARNING**: Potential architectural drift, missing adapter update
 - **INFO**: Architectural improvement suggestion
