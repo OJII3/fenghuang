@@ -29,7 +29,11 @@ export interface StoragePort {
 	getMessageQueue(userId: string): Promise<ChatMessage[]>;
 	clearMessageQueue(userId: string): Promise<void>;
 
-	// Search
+	// Search (text)
 	searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]>;
 	searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]>;
+
+	// Search (vector) — results sorted by cosine similarity descending
+	searchEpisodesByEmbedding(userId: string, embedding: number[], limit: number): Promise<Episode[]>;
+	searchFactsByEmbedding(userId: string, embedding: number[], limit: number): Promise<SemanticFact[]>;
 }

@@ -7,6 +7,7 @@ import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
 import type { EpisodeRow, FactRow, MessageRow } from "./sqlite-rows.ts";
 import { rowToEpisode, rowToFact, rowToMessage } from "./sqlite-rows.ts";
+import { cosineSimilarity } from "./vector-math.ts";
 
 function escapeLike(s: string): string {
 	return s
@@ -264,5 +265,47 @@ export class SQLiteStorageAdapter implements StoragePort {
 			)
 			.all(userId, pattern, pattern, safeLim) as FactRow[];
 		return rows.map((r) => rowToFact(r));
+	}
+
+	// --- Vector search ---
+
+	async searchEpisodesByEmbedding(
+		userId: string,
+		embedding: number[],
+		limit: number,
+	): Promise<Episode[]> {
+		const safeLim = Math.max(1, Math.min(limit, 1000));
+		const rows = this.db
+			.prepare("SELECT * FROM episodes WHERE user_id = ?")
+			.all(userId) as EpisodeRow[];
+
+		return rows
+			.map((r) => {
+				const ep = rowToEpisode(r);
+				return { episode: ep, similarity: cosineSimilarity(embedding, ep.embedding) };
+			})
+			.sort((a, b) => b.similarity - a.similarity)
+			.slice(0, safeLim)
+			.map((r) => r.episode);
+	}
+
+	async searchFactsByEmbedding(
+		userId: string,
+		embedding: number[],
+		limit: number,
+	): Promise<SemanticFact[]> {
+		const safeLim = Math.max(1, Math.min(limit, 1000));
+		const rows = this.db
+			.prepare("SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL")
+			.all(userId) as FactRow[];
+
+		return rows
+			.map((r) => {
+				const fact = rowToFact(r);
+				return { fact, similarity: cosineSimilarity(embedding, fact.embedding) };
+			})
+			.sort((a, b) => b.similarity - a.similarity)
+			.slice(0, safeLim)
+			.map((r) => r.fact);
 	}
 }
