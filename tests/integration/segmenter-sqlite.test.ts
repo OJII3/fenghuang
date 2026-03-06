@@ -141,12 +141,12 @@ describe("Integration: Segmenter + SQLite + EpisodicMemory", () => {
 
 		// Review the episode
 		const now = new Date();
-		const card = await episodic.review(ep.id, "good", now);
+		const card = await episodic.review(userId, ep.id, { rating: "good", now });
 		expect(card).not.toBeNull();
 		expect(card!.lastReviewedAt).toEqual(now);
 
 		// Verify persistence in SQLite
-		const updated = await episodic.getEpisodeById(ep.id);
+		const updated = await episodic.getEpisodeById(userId, ep.id);
 		expect(updated!.lastReviewedAt!.getTime()).toBe(now.getTime());
 	});
 
@@ -238,12 +238,12 @@ describe("Integration: Segmenter + SQLite + EpisodicMemory", () => {
 		await addMessagesSequentially(segmenter, 5);
 
 		const episodes = await episodic.getEpisodes(userId);
-		await episodic.markConsolidated(episodes[0]!.id);
+		await episodic.markConsolidated(userId, episodes[0]!.id);
 
 		const unconsolidated = await episodic.getUnconsolidated(userId);
 		expect(unconsolidated).toHaveLength(0);
 
-		const consolidated = await episodic.getEpisodeById(episodes[0]!.id);
+		const consolidated = await episodic.getEpisodeById(userId, episodes[0]!.id);
 		expect(consolidated!.consolidatedAt).not.toBeNull();
 	});
 });

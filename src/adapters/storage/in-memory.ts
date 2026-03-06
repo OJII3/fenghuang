@@ -12,7 +12,10 @@ export class InMemoryStorageAdapter implements StoragePort {
 
 	// --- Episodic memory ---
 
-	async saveEpisode(_userId: string, episode: Episode): Promise<void> {
+	async saveEpisode(userId: string, episode: Episode): Promise<void> {
+		if (episode.userId !== userId) {
+			throw new Error("episode.userId does not match userId");
+		}
 		this.episodes.set(episode.id, { ...episode });
 	}
 
@@ -20,8 +23,12 @@ export class InMemoryStorageAdapter implements StoragePort {
 		return [...this.episodes.values()].filter((e) => e.userId === userId);
 	}
 
-	async getEpisodeById(episodeId: string): Promise<Episode | null> {
-		return this.episodes.get(episodeId) ?? null;
+	async getEpisodeById(userId: string, episodeId: string): Promise<Episode | null> {
+		const episode = this.episodes.get(episodeId) ?? null;
+		if (episode && episode.userId !== userId) {
+			return null;
+		}
+		return episode;
 	}
 
 	async getUnconsolidatedEpisodes(userId: string): Promise<Episode[]> {
@@ -30,9 +37,9 @@ export class InMemoryStorageAdapter implements StoragePort {
 		);
 	}
 
-	async updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void> {
+	async updateEpisodeFSRS(userId: string, episodeId: string, card: FSRSCard): Promise<void> {
 		const episode = this.episodes.get(episodeId);
-		if (!episode) {
+		if (!episode || episode.userId !== userId) {
 			return;
 		}
 		episode.stability = card.stability;
@@ -40,9 +47,9 @@ export class InMemoryStorageAdapter implements StoragePort {
 		episode.lastReviewedAt = card.lastReviewedAt;
 	}
 
-	async markEpisodeConsolidated(episodeId: string): Promise<void> {
+	async markEpisodeConsolidated(userId: string, episodeId: string): Promise<void> {
 		const episode = this.episodes.get(episodeId);
-		if (!episode) {
+		if (!episode || episode.userId !== userId) {
 			return;
 		}
 		episode.consolidatedAt = new Date();
@@ -50,7 +57,10 @@ export class InMemoryStorageAdapter implements StoragePort {
 
 	// --- Semantic memory ---
 
-	async saveFact(_userId: string, fact: SemanticFact): Promise<void> {
+	async saveFact(userId: string, fact: SemanticFact): Promise<void> {
+		if (fact.userId !== userId) {
+			throw new Error("fact.userId does not match userId");
+		}
 		this.facts.set(fact.id, { ...fact });
 	}
 
@@ -64,17 +74,21 @@ export class InMemoryStorageAdapter implements StoragePort {
 		);
 	}
 
-	async invalidateFact(factId: string, invalidAt: Date): Promise<void> {
+	async invalidateFact(userId: string, factId: string, invalidAt: Date): Promise<void> {
 		const fact = this.facts.get(factId);
-		if (!fact) {
+		if (!fact || fact.userId !== userId) {
 			return;
 		}
 		fact.invalidAt = invalidAt;
 	}
 
-	async updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void> {
+	async updateFact(
+		userId: string,
+		factId: string,
+		updates: Partial<Omit<SemanticFact, "id" | "userId">>,
+	): Promise<void> {
 		const fact = this.facts.get(factId);
-		if (!fact) {
+		if (!fact || fact.userId !== userId) {
 			return;
 		}
 		Object.assign(fact, updates);
@@ -99,6 +113,7 @@ export class InMemoryStorageAdapter implements StoragePort {
 	// --- Search ---
 
 	async searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]> {
+		const safeLim = Math.max(1, Math.min(limit, 1000));
 		const lowerQuery = query.toLowerCase();
 		return [...this.episodes.values()]
 			.filter(
@@ -107,10 +122,11 @@ export class InMemoryStorageAdapter implements StoragePort {
 					(e.title.toLowerCase().includes(lowerQuery) ||
 						e.summary.toLowerCase().includes(lowerQuery)),
 			)
-			.slice(0, limit);
+			.slice(0, safeLim);
 	}
 
 	async searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]> {
+		const safeLim = Math.max(1, Math.min(limit, 1000));
 		const lowerQuery = query.toLowerCase();
 		return [...this.facts.values()]
 			.filter(
@@ -120,6 +136,6 @@ export class InMemoryStorageAdapter implements StoragePort {
 					(f.fact.toLowerCase().includes(lowerQuery) ||
 						f.keywords.some((k) => k.toLowerCase().includes(lowerQuery))),
 			)
-			.slice(0, limit);
+			.slice(0, safeLim);
 	}
 }

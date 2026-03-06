@@ -22,7 +22,7 @@ export class SemanticMemory {
 	}
 
 	/** Invalidate a fact (mark as no longer valid) */
-	async invalidate(factId: string, invalidAt: Date = new Date()): Promise<void> {
-		return this.storage.invalidateFact(factId, invalidAt);
+	async invalidate(userId: string, factId: string, invalidAt: Date = new Date()): Promise<void> {
+		return this.storage.invalidateFact(userId, factId, invalidAt);
 	}
 }

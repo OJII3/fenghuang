@@ -45,13 +45,13 @@ describe("EpisodicMemory — retrieval", () => {
 		const ep = makeEpisode();
 		await storage.saveEpisode(userId, ep);
 
-		const found = await episodic.getEpisodeById(ep.id);
+		const found = await episodic.getEpisodeById(userId, ep.id);
 		expect(found).not.toBeNull();
 		expect(found!.id).toBe(ep.id);
 	});
 
 	test("getEpisodeById returns null for unknown id", async () => {
-		const found = await episodic.getEpisodeById("nonexistent");
+		const found = await episodic.getEpisodeById(userId, "nonexistent");
 		expect(found).toBeNull();
 	});
 
@@ -60,7 +60,7 @@ describe("EpisodicMemory — retrieval", () => {
 		const ep2 = makeEpisode();
 		await storage.saveEpisode(userId, ep1);
 		await storage.saveEpisode(userId, ep2);
-		await storage.markEpisodeConsolidated(ep1.id);
+		await storage.markEpisodeConsolidated(userId, ep1.id);
 
 		const unconsolidated = await episodic.getUnconsolidated(userId);
 		expect(unconsolidated).toHaveLength(1);
@@ -119,7 +119,7 @@ describe("EpisodicMemory — FSRS review", () => {
 		await storage.saveEpisode(userId, ep);
 
 		const now = new Date();
-		const updated = await episodic.review(ep.id, "good", now);
+		const updated = await episodic.review(userId, ep.id, { rating: "good", now });
 
 		expect(updated).not.toBeNull();
 		expect(updated!.lastReviewedAt).toEqual(now);
@@ -131,14 +131,14 @@ describe("EpisodicMemory — FSRS review", () => {
 
 		// First review to set lastReviewedAt
 		const reviewTime1 = new Date("2026-01-01T00:00:00Z");
-		await episodic.review(ep.id, "good", reviewTime1);
+		await episodic.review(userId, ep.id, { rating: "good", now: reviewTime1 });
 
 		// Second review after some time
 		const reviewTime2 = new Date("2026-01-02T00:00:00Z");
-		const updated = await episodic.review(ep.id, "easy", reviewTime2);
+		const updated = await episodic.review(userId, ep.id, { rating: "easy", now: reviewTime2 });
 
 		// Easy rating should increase stability
-		const storedEp = await storage.getEpisodeById(ep.id);
+		const storedEp = await storage.getEpisodeById(userId, ep.id);
 		expect(storedEp!.stability).toBeGreaterThan(0);
 		expect(updated!.lastReviewedAt).toEqual(reviewTime2);
 	});
@@ -149,14 +149,14 @@ describe("EpisodicMemory — FSRS review", () => {
 
 		// First review
 		const reviewTime1 = new Date("2026-01-01T00:00:00Z");
-		await episodic.review(ep.id, "good", reviewTime1);
-		const afterGood = await storage.getEpisodeById(ep.id);
+		await episodic.review(userId, ep.id, { rating: "good", now: reviewTime1 });
+		const afterGood = await storage.getEpisodeById(userId, ep.id);
 		const stabilityAfterGood = afterGood!.stability;
 
 		// Second review with "again" after some time
 		const reviewTime2 = new Date("2026-01-02T00:00:00Z");
-		await episodic.review(ep.id, "again", reviewTime2);
-		const afterAgain = await storage.getEpisodeById(ep.id);
+		await episodic.review(userId, ep.id, { rating: "again", now: reviewTime2 });
+		const afterAgain = await storage.getEpisodeById(userId, ep.id);
 
 		expect(afterAgain!.stability).toBeLessThan(stabilityAfterGood);
 	});
@@ -167,14 +167,14 @@ describe("EpisodicMemory — FSRS review", () => {
 
 		// First review to set baseline
 		const reviewTime1 = new Date("2026-01-01T00:00:00Z");
-		await episodic.review(ep.id, "good", reviewTime1);
-		const afterGood = await storage.getEpisodeById(ep.id);
+		await episodic.review(userId, ep.id, { rating: "good", now: reviewTime1 });
+		const afterGood = await storage.getEpisodeById(userId, ep.id);
 		const stabilityAfterGood = afterGood!.stability;
 
 		// Second review with "hard" after some time
 		const reviewTime2 = new Date("2026-01-02T00:00:00Z");
-		await episodic.review(ep.id, "hard", reviewTime2);
-		const afterHard = await storage.getEpisodeById(ep.id);
+		await episodic.review(userId, ep.id, { rating: "hard", now: reviewTime2 });
+		const afterHard = await storage.getEpisodeById(userId, ep.id);
 
 		// "hard" should decrease stability compared to what "good" produced,
 		// but not as much as "again" would
@@ -182,7 +182,7 @@ describe("EpisodicMemory — FSRS review", () => {
 	});
 
 	test("review returns null for unknown episode", async () => {
-		const result = await episodic.review("nonexistent", "good");
+		const result = await episodic.review(userId, "nonexistent", { rating: "good" });
 		expect(result).toBeNull();
 	});
 });
@@ -200,9 +200,9 @@ describe("EpisodicMemory — consolidation", () => {
 		const ep = makeEpisode();
 		await storage.saveEpisode(userId, ep);
 
-		await episodic.markConsolidated(ep.id);
+		await episodic.markConsolidated(userId, ep.id);
 
-		const updated = await storage.getEpisodeById(ep.id);
+		const updated = await storage.getEpisodeById(userId, ep.id);
 		expect(updated!.consolidatedAt).not.toBeNull();
 		expect(updated!.consolidatedAt).toBeInstanceOf(Date);
 	});

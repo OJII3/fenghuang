@@ -56,7 +56,7 @@ describe("SemanticMemory — getFacts", () => {
 	test("does not return invalidated facts", async () => {
 		const fact = makeFact();
 		await storage.saveFact(userId, fact);
-		await storage.invalidateFact(fact.id, new Date());
+		await storage.invalidateFact(userId, fact.id, new Date());
 
 		const facts = await semantic.getFacts(userId);
 		expect(facts).toHaveLength(0);
@@ -157,7 +157,7 @@ describe("SemanticMemory — invalidate", () => {
 		const fact = makeFact();
 		await storage.saveFact(userId, fact);
 
-		await semantic.invalidate(fact.id);
+		await semantic.invalidate(userId, fact.id);
 
 		const facts = await semantic.getFacts(userId);
 		expect(facts).toHaveLength(0);
@@ -168,7 +168,7 @@ describe("SemanticMemory — invalidate", () => {
 		await storage.saveFact(userId, fact);
 
 		const invalidAt = new Date("2025-01-01");
-		await semantic.invalidate(fact.id, invalidAt);
+		await semantic.invalidate(userId, fact.id, invalidAt);
 
 		// Verify directly via storage — the fact should still exist but be invalidated
 		// getFacts filters out invalidated

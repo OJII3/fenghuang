@@ -8,7 +8,7 @@
 
 - **M3: ConsolidationPipeline + SemanticMemory は完了**
 - M1 の Core ドメイン + In-memory adapter、M2 の Segmenter + EpisodicMemory + SQLite + Vercel AI adapter に加え、意味記憶統合パイプラインが実装済み
-- テスト 181 件が全通過（`bun test`）
+- テスト 260 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -44,23 +44,25 @@
 | Episode テスト            | `tests/core/domain/episode.test.ts`        | 完了（9件）  |
 | SemanticFact テスト       | `tests/core/domain/semantic-fact.test.ts`  | 完了（6件）  |
 | FSRS テスト               | `tests/core/domain/fsrs.test.ts`           | 完了（15件） |
-| In-memory adapter テスト  | `tests/adapters/storage/in-memory.test.ts` | 完了（25件） |
+| In-memory adapter テスト  | `tests/adapters/storage/in-memory.test.ts` | 完了（27件） |
 
 ## 5. M2 成果物
 
-| 項目                  | ファイル                                     | ステータス   |
-| --------------------- | -------------------------------------------- | ------------ |
-| SQLite StoragePort    | `src/adapters/storage/sqlite.ts`             | 完了         |
-| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`      | 完了（30件） |
-| Segmenter             | `src/core/segmenter.ts`                      | 完了         |
-| Segmenter テスト      | `tests/core/segmenter.test.ts`               | 完了（17件） |
-| EpisodicMemory        | `src/core/episodic.ts`                       | 完了         |
-| EpisodicMemory テスト | `tests/core/episodic.test.ts`                | 完了（16件） |
-| 統合テスト            | `tests/integration/segmenter-sqlite.test.ts` | 完了（6件）  |
-| Public API 更新       | `src/index.ts`                               | 完了         |
-| Vercel AI LLM adapter | `src/adapters/llm/vercel-ai.ts`              | 完了         |
-| Vercel AI テスト      | `tests/adapters/llm/vercel-ai.test.ts`       | 完了（18件） |
-| Public API テスト     | `tests/index.test.ts`                        | 完了（1件）  |
+| 項目                  | ファイル                                       | ステータス   |
+| --------------------- | ---------------------------------------------- | ------------ |
+| SQLite StoragePort    | `src/adapters/storage/sqlite.ts`               | 完了         |
+| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`        | 完了（42件） |
+| Segmenter             | `src/core/segmenter.ts`                        | 完了         |
+| Segmenter テスト      | `tests/core/segmenter.test.ts`                 | 完了（17件） |
+| EpisodicMemory        | `src/core/episodic.ts`                         | 完了         |
+| EpisodicMemory テスト | `tests/core/episodic.test.ts`                  | 完了（16件） |
+| 統合テスト            | `tests/integration/segmenter-sqlite.test.ts`   | 完了（6件）  |
+| Public API 更新       | `src/index.ts`                                 | 完了         |
+| Vercel AI LLM adapter | `src/adapters/llm/vercel-ai.ts`                | 完了         |
+| Vercel AI テスト      | `tests/adapters/llm/vercel-ai.test.ts`         | 完了（18件） |
+| parse-helpers         | `src/adapters/storage/parse-helpers.ts`        | 完了         |
+| parse-helpers テスト  | `tests/adapters/storage/parse-helpers.test.ts` | 完了（30件） |
+| Public API テスト     | `tests/index.test.ts`                          | 完了（1件）  |
 
 ### M2 設計上の決定
 
@@ -92,6 +94,10 @@
 2. FTS5 による全文検索の導入
 3. ハイブリッド検索（ベクトル + テキスト）の実装
 
+## 6.6 技術的負債
+
+1. `sqlite.ts` が 350 行上限ギリギリ（349/350）— Row 型 + 変換関数を別ファイルに分離すべき
+
 ## 7. ブロッカー
 
 - なし
@@ -113,18 +119,38 @@
 | WARNING  | ActionContext の now が非決定的（テスト不安定）                                 | 修正済み |
 | WARNING  | Segmenter スキーマで Error→TypeError 不統一                                     | 修正済み |
 
-### PR #6 レビューで検出（既存コードベース対象、未修正）
+### PR #8 レビューで検出・修正済み
 
-| 優先度  | 項目                                                                                          |
-| ------- | --------------------------------------------------------------------------------------------- |
-| WARNING | ID ベースのストレージ操作（`getEpisodeById` 等）に userId 検証がなくテナント分離が不完全      |
-| WARNING | `saveEpisode`/`saveFact` で引数 userId とエンティティ userId の不一致を検証していない         |
-| WARNING | Segmenter のプロンプトで `</conversation>` タグのエスケープが未実装（インジェクションリスク） |
-| WARNING | SQLite から解析した JSON（messages, embedding）の構造検証が不足                               |
-| WARNING | `parseJson` のエラーメッセージに生データ（最大100文字）が含まれ漏洩リスクあり                 |
-| INFO    | LLM API 呼び出しのレート制限・コスト制御が未実装                                              |
-| INFO    | InMemoryStorageAdapter の search limit バリデーションが SQLite と不統一                       |
-| INFO    | `cleanJsonResponse` ユーティリティの直接テスト（`utils.test.ts`）が未作成                     |
+| 優先度   | 項目                                                                                                               | 対応状況 |
+| -------- | ------------------------------------------------------------------------------------------------------------------ | -------- |
+| CRITICAL | `parse-helpers.ts` に専用テストなし                                                                                | 修正済み |
+| CRITICAL | メッセージキューのテナント分離テストなし                                                                           | 修正済み |
+| CRITICAL | ARCHITECTURE.md §5.2 StoragePort が旧シグネチャ                                                                    | 修正済み |
+| WARNING  | `updateFact` で `userId`/`id` 上書き可能（**破壊的変更**: `Partial<Omit<SemanticFact, "id" \| "userId">>` に変更） | 修正済み |
+| WARNING  | `parseJson<T>` ジェネリックが偽の型安全性                                                                          | 修正済み |
+| WARNING  | `validateMessages` で role 有効値チェックなし                                                                      | 修正済み |
+| WARNING  | `validateMessages` で timestamp 型チェックなし                                                                     | 修正済み |
+| WARNING  | SQLite `rowToFact` の category ランタイム検証なし                                                                  | 修正済み |
+| WARNING  | SQLite `rowToMessage` の role ランタイム検証なし                                                                   | 修正済み |
+| WARNING  | `validateEmbedding` に上限長チェックなし                                                                           | 修正済み |
+| WARNING  | `validateStringArray` に上限長チェックなし                                                                         | 修正済み |
+| WARNING  | ARCHITECTURE.md §4 ディレクトリ構成に新規ファイル未反映                                                            | 修正済み |
+| WARNING  | SQLite search limit クランプテストなし                                                                             | 修正済み |
+| WARNING  | SQLite `escapeLike` ワイルドカードテストなし                                                                       | 修正済み |
+| WARNING  | STATUS.md に破壊的 API 変更記載なし                                                                                | 修正済み |
+
+### PR #6 レビューで検出（既存コードベース対象）
+
+| 優先度  | 項目                                                                                          | 対応状況 |
+| ------- | --------------------------------------------------------------------------------------------- | -------- |
+| WARNING | ID ベースのストレージ操作（`getEpisodeById` 等）に userId 検証がなくテナント分離が不完全      | 修正済み |
+| WARNING | `saveEpisode`/`saveFact` で引数 userId とエンティティ userId の不一致を検証していない         | 修正済み |
+| WARNING | Segmenter のプロンプトで `</conversation>` タグのエスケープが未実装（インジェクションリスク） | 修正済み |
+| WARNING | SQLite から解析した JSON（messages, embedding）の構造検証が不足                               | 修正済み |
+| WARNING | `parseJson` のエラーメッセージに生データ（最大100文字）が含まれ漏洩リスクあり                 | 修正済み |
+| INFO    | LLM API 呼び出しのレート制限・コスト制御が未実装                                              | 対象外   |
+| INFO    | InMemoryStorageAdapter の search limit バリデーションが SQLite と不統一                       | 修正済み |
+| INFO    | `cleanJsonResponse` ユーティリティの直接テスト（`utils.test.ts`）が未作成                     | 修正済み |
 
 ## 9. 再開時コンテキスト
 
