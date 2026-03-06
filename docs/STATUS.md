@@ -14,6 +14,12 @@
 - Linter は oxlint、Formatter は oxfmt を使用（biome ではない）
 - PR: https://github.com/OJII3/fenghuang/pull/2
 
+## 2.5 PR レビュー基盤
+
+- `/review-pr` コマンドで 5 つの専門エージェント（アーキテクチャ、コード品質、テストカバレッジ、セキュリティ、ドキュメント）による PR レビューが実行可能
+- エージェント定義: `.claude/agents/`
+- PR: https://github.com/OJII3/fenghuang/pull/3
+
 ## 3. 確定済み方針
 
 1. Hexagonal Architecture（Ports & Adapters）を採用

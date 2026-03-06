@@ -18,7 +18,7 @@ You are the Architecture Reviewer for the **fenghuang** project — a long-term 
 │              SemanticMemory                  │
 │              Retrieval                       │
 │                                              │
-│  Depends only on Port interfaces             │
+│  依存するのは Port（interface）だけ          │
 └──────────┬──────────────────┬───────────────┘
            │                  │
       LLMPort             StoragePort
@@ -39,18 +39,24 @@ You are the Architecture Reviewer for the **fenghuang** project — a long-term 
 
 The most important architectural rule: **dependencies flow inward only**.
 
-- `src/core/` → MUST NOT import from `src/adapters/`, external npm packages, or Node/Bun built-in modules
-- `src/core/` → MAY import from `src/ports/` (Port interfaces only)
-- `src/ports/` → MUST NOT import from `src/adapters/` or `src/core/`
+- `src/core/` → MUST NOT import from `src/adapters/`, `src/ports/`, external npm packages, or Node/Bun built-in modules
+- `src/core/` → MAY only use relative imports within `src/core/`
+- `src/ports/` → MAY import type-only from `src/core/domain/` (domain entities used in Port signatures)
+- `src/ports/` → MUST NOT import from `src/adapters/`
 - `src/adapters/` → MAY import from `src/ports/` (to implement interfaces)
+- `src/adapters/` → MAY import type-only from `src/core/domain/` (domain entities referenced by Port signatures)
+- `src/adapters/` → MUST NOT import from `src/core/` services (segmenter, episodic, consolidation, retrieval)
 - `src/adapters/` → MAY import external packages
 - `src/index.ts` (assembly) → MAY import from all layers (DI composition root)
 
 **How to verify:**
 ```
-# Check Core for forbidden imports
-Grep in src/core/ for: import.*from ['"](?!.*ports)(?!\.)
-# Core should only have relative imports and port imports
+# Check Core for forbidden imports (any non-relative import is a violation)
+Grep in src/core/ for: import.*from\s+['"](?!\.)
+# Core should only have relative imports (starting with ./ or ../)
+
+# Check Adapters for forbidden Core service imports
+Grep in src/adapters/ for: import.*from.*core/(segmenter|episodic|consolidation|retrieval)
 ```
 
 ### 2. Port Interface Integrity
@@ -83,14 +89,14 @@ Assembly happens in `src/index.ts`:
 ### 5. Domain Model Integrity
 
 Core domain entities:
-- `Episode`: id, userId, title, summary, messages, embedding, surprise, stability, difficulty, timestamps
-- `SemanticFact`: id, userId, category, fact, keywords, sourceEpisodicIds, embedding, validAt, invalidAt
+- `Episode`: id, userId, title, summary, messages, embedding, surprise, stability, difficulty, startAt, endAt, createdAt, lastReviewedAt, consolidatedAt
+- `SemanticFact`: id, userId, category, fact, keywords, sourceEpisodicIds, embedding, validAt, invalidAt, createdAt
 - `FSRSCard`: stability, difficulty, lastReviewedAt
 
 Check that:
 - Domain entities are plain data (no external dependencies)
 - Business logic stays in Core services, not in Adapters
-- FSRS parameters (target retention: 0.9) are used correctly
+- FSRS parameters match the target retention defined in SPEC.md (`DESIRED_RETENTION`)
 
 ## Review Process
 

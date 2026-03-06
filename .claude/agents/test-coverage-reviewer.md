@@ -22,16 +22,22 @@ tests/
 │   ├── episodic.test.ts
 │   ├── consolidation.test.ts
 │   └── retrieval.test.ts
-└── adapters/storage/
-    ├── sqlite.test.ts
-    └── in-memory.test.ts
+├── adapters/storage/
+│   ├── sqlite.test.ts
+│   └── in-memory.test.ts
+└── index.test.ts      # DI assembly / createFenghuang tests
 ```
+
+**Note**: Service tests (segmenter, episodic, consolidation, retrieval) and sqlite.test.ts
+are expected once the corresponding source modules are implemented beyond TODO stubs.
+If the source file contains only a TODO stub with no logic, the absence of tests is INFO, not CRITICAL.
 
 **Coverage requirements:**
 - All Core domain logic MUST have unit tests
-- All Core services (segmenter, episodic, consolidation, retrieval) MUST have tests
+- All Core services (segmenter, episodic, consolidation, retrieval) MUST have tests (once implemented)
 - Adapter tests should verify Port contract compliance
 - New public functions MUST have at least one test
+- Public API entry points (e.g., `createFenghuang`) should have basic integration tests
 
 ### 2. In-Memory Adapter Test Strategy (CRITICAL)
 
@@ -40,7 +46,16 @@ This is a RUNBOOK invariant: **tests MUST use in-memory adapter**.
 Verify:
 - Core tests do NOT import SQLite, external storage, or real LLM adapters
 - Tests use `in-memory` storage adapter for all storage operations
-- LLM-dependent tests use mock/stub implementations of `LLMPort`
+- LLM-dependent tests use mock/stub implementations of `LLMPort`, for example:
+
+```typescript
+const mockLLM: LLMPort = {
+  chat: async (_messages) => "mocked response",
+  chatStructured: async (_messages, _schema) => ({ /* test data */ }),
+  embed: async (_text) => [0.1, 0.2, 0.3],
+};
+```
+
 - No tests require external services (network, database, API) to run
 
 ### 3. Bun Test Patterns
@@ -79,7 +94,9 @@ Verify:
 
 For this memory system, ensure tests cover:
 
-- **FSRS calculations**: stability, difficulty, retrievability with target retention 0.9
+- **FSRS calculations**: stability, difficulty, retrievability with target retention per SPEC.md
+- **FSRS ratings**: verify each rating (again/hard/good/easy) produces distinct effects on both stability and difficulty
+- **Exported constants**: `SURPRISE_VALUES` and `FSRS_CONFIG` values match SPEC.md definitions
 - **Episode segmentation**: message count threshold, time-based threshold, surprise scoring
 - **Semantic consolidation**: fact extraction, actions (New/Reinforce/Update/Invalidate)
 - **Retrieval**: RRF score fusion, FSRS retrievability re-ranking, embedding similarity search

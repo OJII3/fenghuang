@@ -25,7 +25,7 @@ Every PR must comply with these rules. Flag violations immediately:
 |---|------|---------------|
 | 1 | Core (`src/core/`) must NOT import external packages | Check import statements |
 | 2 | Adapters must implement their corresponding Port interface | Check interface implementation |
-| 3 | Port changes affect all Adapters | Verify all Adapters are updated |
+| 3 | Port changes affect Core and all Adapters — proceed with caution | Verify Core and all Adapters are updated |
 | 4 | Tests must use in-memory adapter | Check test file imports |
 | 5 | All public functions must have type annotations | Check return/parameter types |
 | 6 | `bun test` must pass | Verify test results |
@@ -42,7 +42,7 @@ Every PR must comply with these rules. Flag violations immediately:
 - No unnecessary abstractions for single-use operations
 
 ### 4. Naming Conventions
-- Files: kebab-case (e.g., `episodic-memory.ts`)
+- Files: kebab-case (e.g., `semantic-fact.ts`, `in-memory.ts`)
 - Types/Interfaces: PascalCase (e.g., `EpisodicMemory`)
 - Functions/Variables: camelCase (e.g., `createEpisode`)
 - Constants: UPPER_SNAKE_CASE for true constants

@@ -74,7 +74,13 @@ For new or updated dependencies:
 - Check for unnecessary permissions or capabilities
 - Prefer well-known packages over obscure ones
 
-### 6. SQLite-Specific Security
+### 6. Resource Limits & Cost Control
+
+- **LLM API rate limiting**: Check for unbounded LLM API calls that could lead to high costs or API key exhaustion
+- **Storage size bounds**: Verify limits on max episodes, max embedding dimensions, max message count per episode
+- **Safe JSON deserialization**: When reading JSON from SQLite (messages, embeddings), validate structure before use
+
+### 7. SQLite-Specific Security
 
 - Parameterized queries only (no string concatenation for SQL)
 - No raw SQL with user-supplied values

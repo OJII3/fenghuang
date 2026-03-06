@@ -44,12 +44,20 @@ After all agents complete, synthesize their findings into a unified review.
 
 For each CRITICAL or WARNING finding with a specific file and line:
 
+First, resolve the repository owner/name and PR number:
 ```
-gh api repos/{owner}/{repo}/pulls/{pr_number}/comments \
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+PR_NUMBER=$(gh pr view $ARGUMENTS --json number -q .number)
+COMMIT_ID=$(gh pr view $ARGUMENTS --json headRefOid -q .headRefOid)
+```
+
+Then post inline comments:
+```
+gh api repos/$REPO/pulls/$PR_NUMBER/comments \
   -f body="**[SEVERITY]** description" \
   -f path="file/path.ts" \
   -F line=LINE_NUMBER \
-  -f commit_id="$(gh pr view $ARGUMENTS --json headRefOid -q .headRefOid)"
+  -f commit_id="$COMMIT_ID"
 ```
 
 ### Summary Comment

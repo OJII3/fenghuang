@@ -35,6 +35,7 @@ When code changes occur, verify the relevant docs are updated:
 | Port interface change | `docs/ARCHITECTURE.md` |
 | Operational rule change | `docs/RUNBOOK.md` |
 | New command or tool | `.claude/CLAUDE.md` (Commands table) |
+| New agent or slash command | `.claude/CLAUDE.md`, `docs/STATUS.md` |
 | Progress / milestone completion | `docs/STATUS.md` |
 
 **How to verify:**
