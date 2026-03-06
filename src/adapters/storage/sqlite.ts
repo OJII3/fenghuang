@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+
 import type { Episode } from "../../core/domain/episode.ts";
 import type { FSRSCard } from "../../core/domain/fsrs.ts";
 import type { SemanticFact } from "../../core/domain/semantic-fact.ts";
@@ -9,14 +10,13 @@ import type { StoragePort } from "../../ports/storage.ts";
 export class SQLiteStorageAdapter implements StoragePort {
 	private db: Database;
 
-	constructor(path: string = ":memory:") {
+	constructor(path = ":memory:") {
 		this.db = new Database(path);
 		this.db.exec("PRAGMA journal_mode = WAL");
 		this.db.exec("PRAGMA foreign_keys = ON");
 		this.createTables();
 	}
 
-	/** Close the database connection */
 	close(): void {
 		this.db.close();
 	}
@@ -70,8 +70,6 @@ export class SQLiteStorageAdapter implements StoragePort {
 		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)`);
 	}
 
-	// --- Episodic memory ---
-
 	async saveEpisode(_userId: string, episode: Episode): Promise<void> {
 		this.db
 			.prepare(
@@ -97,12 +95,16 @@ export class SQLiteStorageAdapter implements StoragePort {
 	}
 
 	async getEpisodes(userId: string): Promise<Episode[]> {
-		const rows = this.db.prepare("SELECT * FROM episodes WHERE user_id = ?").all(userId) as EpisodeRow[];
-		return rows.map(rowToEpisode);
+		const rows = this.db
+			.prepare("SELECT * FROM episodes WHERE user_id = ?")
+			.all(userId) as EpisodeRow[];
+		return rows.map((r) => rowToEpisode(r));
 	}
 
 	async getEpisodeById(episodeId: string): Promise<Episode | null> {
-		const row = this.db.prepare("SELECT * FROM episodes WHERE id = ?").get(episodeId) as EpisodeRow | null;
+		const row = this.db
+			.prepare("SELECT * FROM episodes WHERE id = ?")
+			.get(episodeId) as EpisodeRow | null;
 		return row ? rowToEpisode(row) : null;
 	}
 
@@ -110,20 +112,22 @@ export class SQLiteStorageAdapter implements StoragePort {
 		const rows = this.db
 			.prepare("SELECT * FROM episodes WHERE user_id = ? AND consolidated_at IS NULL")
 			.all(userId) as EpisodeRow[];
-		return rows.map(rowToEpisode);
+		return rows.map((r) => rowToEpisode(r));
 	}
 
 	async updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void> {
 		this.db
-			.prepare("UPDATE episodes SET stability = ?, difficulty = ?, last_reviewed_at = ? WHERE id = ?")
+			.prepare(
+				"UPDATE episodes SET stability = ?, difficulty = ?, last_reviewed_at = ? WHERE id = ?",
+			)
 			.run(card.stability, card.difficulty, card.lastReviewedAt?.getTime() ?? null, episodeId);
 	}
 
 	async markEpisodeConsolidated(episodeId: string): Promise<void> {
-		this.db.prepare("UPDATE episodes SET consolidated_at = ? WHERE id = ?").run(new Date().getTime(), episodeId);
+		this.db
+			.prepare("UPDATE episodes SET consolidated_at = ? WHERE id = ?")
+			.run(Date.now(), episodeId);
 	}
-
-	// --- Semantic memory ---
 
 	async saveFact(_userId: string, fact: SemanticFact): Promise<void> {
 		this.db
@@ -149,23 +153,31 @@ export class SQLiteStorageAdapter implements StoragePort {
 		const rows = this.db
 			.prepare("SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL")
 			.all(userId) as FactRow[];
-		return rows.map(rowToFact);
+		return rows.map((r) => rowToFact(r));
 	}
 
 	async getFactsByCategory(userId: string, category: FactCategory): Promise<SemanticFact[]> {
 		const rows = this.db
-			.prepare("SELECT * FROM semantic_facts WHERE user_id = ? AND category = ? AND invalid_at IS NULL")
+			.prepare(
+				"SELECT * FROM semantic_facts WHERE user_id = ? AND category = ? AND invalid_at IS NULL",
+			)
 			.all(userId, category) as FactRow[];
-		return rows.map(rowToFact);
+		return rows.map((r) => rowToFact(r));
 	}
 
 	async invalidateFact(factId: string, invalidAt: Date): Promise<void> {
-		this.db.prepare("UPDATE semantic_facts SET invalid_at = ? WHERE id = ?").run(invalidAt.getTime(), factId);
+		this.db
+			.prepare("UPDATE semantic_facts SET invalid_at = ? WHERE id = ?")
+			.run(invalidAt.getTime(), factId);
 	}
 
 	async updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void> {
-		const row = this.db.prepare("SELECT * FROM semantic_facts WHERE id = ?").get(factId) as FactRow | null;
-		if (!row) return;
+		const row = this.db
+			.prepare("SELECT * FROM semantic_facts WHERE id = ?")
+			.get(factId) as FactRow | null;
+		if (!row) {
+			return;
+		}
 
 		const current = rowToFact(row);
 		const merged = { ...current, ...updates };
@@ -188,8 +200,6 @@ export class SQLiteStorageAdapter implements StoragePort {
 			);
 	}
 
-	// --- Message queue ---
-
 	async pushMessage(userId: string, message: ChatMessage): Promise<void> {
 		this.db
 			.prepare("INSERT INTO message_queue (user_id, role, content, timestamp) VALUES (?, ?, ?, ?)")
@@ -198,16 +208,16 @@ export class SQLiteStorageAdapter implements StoragePort {
 
 	async getMessageQueue(userId: string): Promise<ChatMessage[]> {
 		const rows = this.db
-			.prepare("SELECT role, content, timestamp FROM message_queue WHERE user_id = ? ORDER BY id ASC")
+			.prepare(
+				"SELECT role, content, timestamp FROM message_queue WHERE user_id = ? ORDER BY id ASC",
+			)
 			.all(userId) as MessageRow[];
-		return rows.map(rowToMessage);
+		return rows.map((r) => rowToMessage(r));
 	}
 
 	async clearMessageQueue(userId: string): Promise<void> {
 		this.db.prepare("DELETE FROM message_queue WHERE user_id = ?").run(userId);
 	}
-
-	// --- Search ---
 
 	async searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]> {
 		const pattern = `%${query}%`;
@@ -216,7 +226,7 @@ export class SQLiteStorageAdapter implements StoragePort {
 				`SELECT * FROM episodes WHERE user_id = ? AND (title LIKE ? COLLATE NOCASE OR summary LIKE ? COLLATE NOCASE) LIMIT ?`,
 			)
 			.all(userId, pattern, pattern, limit) as EpisodeRow[];
-		return rows.map(rowToEpisode);
+		return rows.map((r) => rowToEpisode(r));
 	}
 
 	async searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]> {
@@ -226,11 +236,9 @@ export class SQLiteStorageAdapter implements StoragePort {
 				`SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL AND (fact LIKE ? COLLATE NOCASE OR keywords LIKE ? COLLATE NOCASE) LIMIT ?`,
 			)
 			.all(userId, pattern, pattern, limit) as FactRow[];
-		return rows.map(rowToFact);
+		return rows.map((r) => rowToFact(r));
 	}
 }
-
-// --- Row types and converters ---
 
 interface EpisodeRow {
 	id: string;
@@ -263,8 +271,8 @@ function rowToEpisode(row: EpisodeRow): Episode {
 		startAt: new Date(row.start_at),
 		endAt: new Date(row.end_at),
 		createdAt: new Date(row.created_at),
-		lastReviewedAt: row.last_reviewed_at !== null ? new Date(row.last_reviewed_at) : null,
-		consolidatedAt: row.consolidated_at !== null ? new Date(row.consolidated_at) : null,
+		lastReviewedAt: row.last_reviewed_at === null ? null : new Date(row.last_reviewed_at),
+		consolidatedAt: row.consolidated_at === null ? null : new Date(row.consolidated_at),
 	};
 }
 
@@ -291,7 +299,7 @@ function rowToFact(row: FactRow): SemanticFact {
 		sourceEpisodicIds: JSON.parse(row.source_episodic_ids) as string[],
 		embedding: JSON.parse(row.embedding) as number[],
 		validAt: new Date(row.valid_at),
-		invalidAt: row.invalid_at !== null ? new Date(row.invalid_at) : null,
+		invalidAt: row.invalid_at === null ? null : new Date(row.invalid_at),
 		createdAt: new Date(row.created_at),
 	};
 }
@@ -306,6 +314,6 @@ function rowToMessage(row: MessageRow): ChatMessage {
 	return {
 		role: row.role as ChatMessage["role"],
 		content: row.content,
-		...(row.timestamp !== null ? { timestamp: new Date(row.timestamp) } : {}),
+		...(row.timestamp === null ? {} : { timestamp: new Date(row.timestamp) }),
 	};
 }

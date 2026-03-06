@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { FSRS_CONFIG, retrievability, reviewCard } from "../../../src/core/domain/fsrs.ts";
 
 function makeCard(overrides: Partial<Parameters<typeof retrievability>[0]> = {}) {

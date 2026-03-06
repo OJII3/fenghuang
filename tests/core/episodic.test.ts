@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+
 import { InMemoryStorageAdapter } from "../../src/adapters/storage/in-memory.ts";
-import { createEpisode } from "../../src/core/domain/episode.ts";
 import type { Episode } from "../../src/core/domain/episode.ts";
-import { EpisodicMemory } from "../../src/core/episodic.ts";
+import { createEpisode } from "../../src/core/domain/episode.ts";
 import type { ChatMessage } from "../../src/core/domain/types.ts";
+import { EpisodicMemory } from "../../src/core/episodic.ts";
 
 const userId = "user-1";
 
@@ -93,9 +94,11 @@ describe("EpisodicMemory — search", () => {
 	});
 
 	test("search respects limit", async () => {
-		for (let i = 0; i < 5; i++) {
-			await storage.saveEpisode(userId, makeEpisode({ title: `Episode ${i}` }));
-		}
+		await Promise.all(
+			Array.from({ length: 5 }, (_, i) =>
+				storage.saveEpisode(userId, makeEpisode({ title: `Episode ${i}` })),
+			),
+		);
 
 		const results = await episodic.search(userId, "episode", 3);
 		expect(results).toHaveLength(3);

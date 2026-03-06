@@ -1,4 +1,5 @@
 import type { OpencodeClient } from "@opencode-ai/sdk/client";
+
 import type { ChatMessage } from "../../core/domain/types.ts";
 import type { LLMPort, Schema } from "../../ports/llm.ts";
 
@@ -98,9 +99,11 @@ function formatMessages(messages: ChatMessage[]): { system: string | undefined; 
 }
 
 /** Extract text content from response parts */
-function extractTextFromParts(parts: Array<{ type: string; text?: string }>): string {
-	const textParts = parts.filter((p) => p.type === "text" && p.text);
-	return textParts.map((p) => p.text!).join("");
+function extractTextFromParts(parts: { type: string; text?: string }[]): string {
+	return parts
+		.filter((p) => p.type === "text" && p.text)
+		.map((p) => p.text ?? "")
+		.join("");
 }
 
 /** Clean LLM response that may contain markdown code fences */

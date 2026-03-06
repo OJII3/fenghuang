@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+
 import { InMemoryStorageAdapter } from "../../src/adapters/storage/in-memory.ts";
 import type { Episode } from "../../src/core/domain/episode.ts";
 import type { ChatMessage, SurpriseLevel } from "../../src/core/domain/types.ts";
 import { SURPRISE_VALUES } from "../../src/core/domain/types.ts";
-import { Segmenter } from "../../src/core/segmenter.ts";
 import type { SegmentationOutput } from "../../src/core/segmenter.ts";
+import { Segmenter } from "../../src/core/segmenter.ts";
 import type { LLMPort, Schema } from "../../src/ports/llm.ts";
 
 // --- Mock LLMPort ---
@@ -34,6 +35,18 @@ function makeMessages(count: number): ChatMessage[] {
 	);
 }
 
+/** Add messages sequentially (order-dependent — each addMessage checks thresholds) */
+async function addMessagesSequentially(
+	segmenter: Segmenter,
+	targetUserId: string,
+	messages: ChatMessage[],
+): Promise<void> {
+	for (const msg of messages) {
+		// eslint-disable-next-line no-await-in-loop -- order-dependent: each addMessage checks thresholds
+		await segmenter.addMessage(targetUserId, msg);
+	}
+}
+
 const userId = "user-1";
 
 describe("Segmenter — threshold checks", () => {
@@ -52,6 +65,7 @@ describe("Segmenter — threshold checks", () => {
 
 		// Add 10 messages (below softTrigger of 20)
 		for (const msg of makeMessages(10)) {
+			// eslint-disable-next-line no-await-in-loop -- need to check each return value
 			const episodes = await segmenter.addMessage(userId, msg);
 			expect(episodes).toHaveLength(0);
 		}
@@ -81,9 +95,7 @@ describe("Segmenter — threshold checks", () => {
 		});
 
 		// Add 9 messages (below softTrigger)
-		for (const msg of makeMessages(9)) {
-			await segmenter.addMessage(userId, msg);
-		}
+		await addMessagesSequentially(segmenter, userId, makeMessages(9));
 
 		// 10th message should trigger segmentation
 		const episodes = await segmenter.addMessage(userId, makeMessage("trigger"));
@@ -111,9 +123,7 @@ describe("Segmenter — threshold checks", () => {
 		});
 
 		// Add 4 messages (below hardTrigger)
-		for (const msg of makeMessages(4)) {
-			await segmenter.addMessage(userId, msg);
-		}
+		await addMessagesSequentially(segmenter, userId, makeMessages(4));
 
 		// 5th message should trigger forced segmentation
 		const episodes = await segmenter.addMessage(userId, makeMessage("trigger"));
@@ -129,9 +139,7 @@ describe("Segmenter — threshold checks", () => {
 		});
 
 		// Add 5 messages (reaches softTrigger)
-		for (const msg of makeMessages(5)) {
-			await segmenter.addMessage(userId, msg);
-		}
+		await addMessagesSequentially(segmenter, userId, makeMessages(5));
 
 		// Queue should still have all messages since no segments detected
 		const queue = await storage.getMessageQueue(userId);
@@ -165,9 +173,7 @@ describe("Segmenter — episode creation", () => {
 			hardTrigger: 20,
 		});
 
-		for (const msg of makeMessages(5)) {
-			await segmenter.addMessage(userId, msg);
-		}
+		await addMessagesSequentially(segmenter, userId, makeMessages(5));
 
 		const episodes = await storage.getEpisodes(userId);
 		expect(episodes).toHaveLength(1);
@@ -200,9 +206,7 @@ describe("Segmenter — episode creation", () => {
 			hardTrigger: 20,
 		});
 
-		for (const msg of makeMessages(5)) {
-			await segmenter.addMessage(userId, msg);
-		}
+		await addMessagesSequentially(segmenter, userId, makeMessages(5));
 
 		const ep = await storage.getEpisodes(userId);
 		expect(ep).toHaveLength(1);
@@ -235,9 +239,7 @@ describe("Segmenter — episode creation", () => {
 			hardTrigger: 20,
 		});
 
-		for (const msg of makeMessages(10)) {
-			await segmenter.addMessage(userId, msg);
-		}
+		await addMessagesSequentially(segmenter, userId, makeMessages(10));
 
 		const episodes = await storage.getEpisodes(userId);
 		expect(episodes).toHaveLength(2);
@@ -268,10 +270,10 @@ describe("Segmenter — episode creation", () => {
 				hardTrigger: 20,
 			});
 
-			for (const msg of makeMessages(5)) {
-				await segmenter.addMessage(userId, msg);
-			}
+			// eslint-disable-next-line no-await-in-loop -- each iteration uses separate storage
+			await addMessagesSequentially(segmenter, userId, makeMessages(5));
 
+			// eslint-disable-next-line no-await-in-loop -- each iteration uses separate storage
 			const episodes = await localStorage.getEpisodes(userId);
 			expect(episodes[0]!.surprise).toBe(SURPRISE_VALUES[level]);
 		}
@@ -304,9 +306,7 @@ describe("Segmenter — queue management", () => {
 			hardTrigger: 20,
 		});
 
-		for (const msg of makeMessages(5)) {
-			await segmenter.addMessage(userId, msg);
-		}
+		await addMessagesSequentially(segmenter, userId, makeMessages(5));
 
 		const queue = await storage.getMessageQueue(userId);
 		expect(queue).toHaveLength(0);
@@ -331,9 +331,7 @@ describe("Segmenter — queue management", () => {
 			hardTrigger: 20,
 		});
 
-		for (const msg of makeMessages(10)) {
-			await segmenter.addMessage(userId, msg);
-		}
+		await addMessagesSequentially(segmenter, userId, makeMessages(10));
 
 		// 4 remaining messages should be in the queue
 		const queue = await storage.getMessageQueue(userId);
@@ -362,13 +360,12 @@ describe("Segmenter — queue management", () => {
 
 		// Add messages for user-2 first
 		for (const msg of makeMessages(3)) {
+			// eslint-disable-next-line no-await-in-loop -- sequential push required
 			await storage.pushMessage("user-2", msg);
 		}
 
 		// Add messages for user-1 triggering segmentation
-		for (const msg of makeMessages(5)) {
-			await segmenter.addMessage("user-1", msg);
-		}
+		await addMessagesSequentially(segmenter, "user-1", makeMessages(5));
 
 		// user-2 queue should be untouched
 		const user2Queue = await storage.getMessageQueue("user-2");

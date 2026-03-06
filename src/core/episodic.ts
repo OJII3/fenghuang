@@ -32,9 +32,15 @@ export class EpisodicMemory {
 	 * Review an episode — update FSRS parameters based on rating.
 	 * Called when a memory is retrieved and its relevance is evaluated.
 	 */
-	async review(episodeId: string, rating: ReviewRating, now: Date = new Date()): Promise<FSRSCard | null> {
+	async review(
+		episodeId: string,
+		rating: ReviewRating,
+		now: Date = new Date(),
+	): Promise<FSRSCard | null> {
 		const episode = await this.storage.getEpisodeById(episodeId);
-		if (!episode) return null;
+		if (!episode) {
+			return null;
+		}
 
 		const card: FSRSCard = {
 			stability: episode.stability,
