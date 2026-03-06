@@ -35,5 +35,9 @@ export interface StoragePort {
 
 	// Search (vector) — results sorted by cosine similarity descending
 	searchEpisodesByEmbedding(userId: string, embedding: number[], limit: number): Promise<Episode[]>;
-	searchFactsByEmbedding(userId: string, embedding: number[], limit: number): Promise<SemanticFact[]>;
+	searchFactsByEmbedding(
+		userId: string,
+		embedding: number[],
+		limit: number,
+	): Promise<SemanticFact[]>;
 }

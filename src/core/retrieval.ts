@@ -122,15 +122,82 @@ function scoreFacts(
 /** Default candidate limit for search queries */
 const CANDIDATE_LIMIT = 50;
 
+interface ResolvedOptions {
+	limit: number;
+	textWeight: number;
+	vectorWeight: number;
+	fsrsWeight: number;
+	now: Date;
+}
+
+function resolveOptions(options: RetrievalOptions): ResolvedOptions {
+	const {
+		limit: rawLimit = 10,
+		textWeight = 1.0,
+		vectorWeight = 1.0,
+		fsrsWeight = 0.5,
+		now = new Date(),
+	} = options;
+	return {
+		limit: Math.max(1, Math.min(Math.floor(rawLimit), 1000)),
+		textWeight,
+		vectorWeight,
+		fsrsWeight,
+		now,
+	};
+}
+
+interface RankContext {
+	textEpisodes: Episode[];
+	vectorEpisodes: Episode[];
+	textFacts: SemanticFact[];
+	vectorFacts: SemanticFact[];
+	opts: ResolvedOptions;
+}
+
+/** Rank search results by RRF + FSRS boost */
+function rankResults(ctx: RankContext): RetrievalResult {
+	const { textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts } = ctx;
+
+	const episodeRrf = reciprocalRankFusion(
+		[
+			{ items: textEpisodes, weight: opts.textWeight },
+			{ items: vectorEpisodes, weight: opts.vectorWeight },
+		],
+		(ep) => ep.id,
+	);
+	const episodes = scoreEpisodes({
+		rrfScores: episodeRrf,
+		episodeMap: buildLookup(textEpisodes, vectorEpisodes),
+		fsrsWeight: opts.fsrsWeight,
+		now: opts.now,
+	}).slice(0, opts.limit);
+
+	const factRrf = reciprocalRankFusion(
+		[
+			{ items: textFacts, weight: opts.textWeight },
+			{ items: vectorFacts, weight: opts.vectorWeight },
+		],
+		(f) => f.id,
+	);
+	const facts = scoreFacts(factRrf, buildLookup(textFacts, vectorFacts)).slice(0, opts.limit);
+
+	return { episodes, facts };
+}
+
 /** Retrieval service — hybrid search with FSRS reranking */
 export class Retrieval {
 	constructor(
-		protected llm: LLMPort,
-		protected storage: StoragePort,
+		private llm: LLMPort,
+		private storage: StoragePort,
 	) {}
 
 	/** Run all 4 searches in parallel */
-	private runSearches(userId: string, query: string, queryEmbedding: number[]) {
+	private runSearches(
+		userId: string,
+		query: string,
+		queryEmbedding: number[],
+	): Promise<[Episode[], SemanticFact[], Episode[], SemanticFact[]]> {
 		return Promise.all([
 			this.storage.searchEpisodes(userId, query, CANDIDATE_LIMIT),
 			this.storage.searchFacts(userId, query, CANDIDATE_LIMIT),
@@ -146,44 +213,16 @@ export class Retrieval {
 		options: RetrievalOptions = {},
 	): Promise<RetrievalResult> {
 		validateUserId(userId);
-		const {
-			limit = 10,
-			textWeight = 1.0,
-			vectorWeight = 1.0,
-			fsrsWeight = 0.5,
-			now = new Date(),
-		} = options;
-
+		if (query === "") {
+			return { episodes: [], facts: [] };
+		}
+		const opts = resolveOptions(options);
 		const queryEmbedding = await this.llm.embed(query);
 		const [textEpisodes, textFacts, vectorEpisodes, vectorFacts] = await this.runSearches(
 			userId,
 			query,
 			queryEmbedding,
 		);
-
-		const episodeRrf = reciprocalRankFusion(
-			[
-				{ items: textEpisodes, weight: textWeight },
-				{ items: vectorEpisodes, weight: vectorWeight },
-			],
-			(ep) => ep.id,
-		);
-		const episodes = scoreEpisodes({
-			rrfScores: episodeRrf,
-			episodeMap: buildLookup(textEpisodes, vectorEpisodes),
-			fsrsWeight,
-			now,
-		}).slice(0, limit);
-
-		const factRrf = reciprocalRankFusion(
-			[
-				{ items: textFacts, weight: textWeight },
-				{ items: vectorFacts, weight: vectorWeight },
-			],
-			(f) => f.id,
-		);
-		const facts = scoreFacts(factRrf, buildLookup(textFacts, vectorFacts)).slice(0, limit);
-
-		return { episodes, facts };
+		return rankResults({ textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts });
 	}
 }

@@ -441,16 +441,16 @@ describe("InMemoryStorage — vector search episodes", () => {
 	});
 
 	test("filters by userId", async () => {
-		await storage.saveEpisode(
-			"user-1",
-			makeEpisode({ userId: "user-1", embedding: [1, 0, 0] }),
-		);
-		await storage.saveEpisode(
-			"user-2",
-			makeEpisode({ userId: "user-2", embedding: [1, 0, 0] }),
-		);
+		await storage.saveEpisode("user-1", makeEpisode({ userId: "user-1", embedding: [1, 0, 0] }));
+		await storage.saveEpisode("user-2", makeEpisode({ userId: "user-2", embedding: [1, 0, 0] }));
 
 		const results = await storage.searchEpisodesByEmbedding("user-1", [1, 0, 0], 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("clamps negative limit to 1", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ embedding: [1, 0, 0] }));
+		const results = await storage.searchEpisodesByEmbedding(userId, [1, 0, 0], -5);
 		expect(results).toHaveLength(1);
 	});
 });
@@ -496,6 +496,12 @@ describe("InMemoryStorage — vector search facts", () => {
 		await storage.saveFact("user-2", makeFact({ userId: "user-2", embedding: [1, 0, 0] }));
 
 		const results = await storage.searchFactsByEmbedding("user-1", [1, 0, 0], 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("clamps negative limit to 1", async () => {
+		await storage.saveFact(userId, makeFact({ embedding: [1, 0, 0] }));
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0, 0], -5);
 		expect(results).toHaveLength(1);
 	});
 });

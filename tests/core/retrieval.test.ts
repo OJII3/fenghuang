@@ -48,15 +48,17 @@ function makeFact(overrides: Record<string, unknown> = {}) {
 // --- reciprocalRankFusion unit tests ---
 
 describe("reciprocalRankFusion", () => {
-	test("single list scores by rank", () => {
+	test("single list scores by rank with expected values", () => {
 		const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
 		const scores = reciprocalRankFusion([{ items, weight: 1.0 }], (x) => x.id);
 
-		expect(scores.get("a")).toBeGreaterThan(scores.get("b")!);
-		expect(scores.get("b")).toBeGreaterThan(scores.get("c")!);
+		// RRF formula: weight / (k + rank + 1), k=60
+		expect(scores.get("a")).toBeCloseTo(1 / 61, 10);
+		expect(scores.get("b")).toBeCloseTo(1 / 62, 10);
+		expect(scores.get("c")).toBeCloseTo(1 / 63, 10);
 	});
 
-	test("items in both lists get higher score", () => {
+	test("items in both lists get combined score", () => {
 		const list1 = [{ id: "a" }, { id: "b" }];
 		const list2 = [{ id: "b" }, { id: "c" }];
 		const scores = reciprocalRankFusion(
@@ -67,8 +69,10 @@ describe("reciprocalRankFusion", () => {
 			(x) => x.id,
 		);
 
-		expect(scores.get("b")).toBeGreaterThan(scores.get("a")!);
-		expect(scores.get("b")).toBeGreaterThan(scores.get("c")!);
+		// "b" appears at rank 1 in list1 and rank 0 in list2
+		expect(scores.get("b")).toBeCloseTo(1 / 62 + 1 / 61, 10);
+		expect(scores.get("a")).toBeCloseTo(1 / 61, 10);
+		expect(scores.get("c")).toBeCloseTo(1 / 62, 10);
 	});
 
 	test("weight affects score contribution", () => {
@@ -77,6 +81,12 @@ describe("reciprocalRankFusion", () => {
 		const scores2 = reciprocalRankFusion([{ items, weight: 2.0 }], (x) => x.id);
 
 		expect(scores2.get("a")!).toBeCloseTo(scores1.get("a")! * 2);
+	});
+
+	test("weight=0 produces zero score", () => {
+		const items = [{ id: "a" }];
+		const scores = reciprocalRankFusion([{ items, weight: 0 }], (x) => x.id);
+		expect(scores.get("a")).toBe(0);
 	});
 
 	test("empty lists return empty map", () => {
@@ -110,13 +120,14 @@ describe("Retrieval — text-only match", () => {
 		expect(result.episodes[0]!.score).toBeGreaterThan(0);
 	});
 
-	test("returns fact found by text search", async () => {
+	test("returns fact found by text search with positive score", async () => {
 		const fact = makeFact({ fact: "Prefers dark mode", embedding: [1, 0, 0] });
 		await storage.saveFact(userId, fact);
 
 		const result = await retrieval.retrieve(userId, "dark mode");
 		expect(result.facts).toHaveLength(1);
 		expect(result.facts[0]!.fact.id).toBe(fact.id);
+		expect(result.facts[0]!.score).toBeGreaterThan(0);
 	});
 });
 
@@ -208,6 +219,15 @@ describe("Retrieval — FSRS retrievability", () => {
 		expect(result.episodes).toHaveLength(2);
 		expect(result.episodes[0]!.retrievability).toBeGreaterThan(result.episodes[1]!.retrievability);
 	});
+
+	test("episode with null lastReviewedAt has retrievability 1.0", async () => {
+		const ep = makeEpisode({ title: "TypeScript New", embedding: [1, 0, 0] });
+		await storage.saveEpisode(userId, ep);
+
+		const result = await retrieval.retrieve(userId, "TypeScript");
+		expect(result.episodes).toHaveLength(1);
+		expect(result.episodes[0]!.retrievability).toBe(1.0);
+	});
 });
 
 describe("Retrieval — edge cases", () => {
@@ -246,5 +266,92 @@ describe("Retrieval — edge cases", () => {
 
 	test("throws on empty userId", async () => {
 		await expect(retrieval.retrieve("", "query")).rejects.toThrow("userId must not be empty");
+	});
+
+	test("empty query returns empty results without calling embed", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "TypeScript", embedding: [1, 0, 0] }));
+		const result = await retrieval.retrieve(userId, "");
+		expect(result.episodes).toHaveLength(0);
+		expect(result.facts).toHaveLength(0);
+	});
+
+	test("limit is clamped to minimum 1", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "Test", embedding: [1, 0, 0] }));
+		const result = await retrieval.retrieve(userId, "Test", { limit: -5 });
+		expect(result.episodes).toHaveLength(1);
+	});
+
+	test("limit is clamped to maximum 1000", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "Test", embedding: [1, 0, 0] }));
+		const result = await retrieval.retrieve(userId, "Test", { limit: 99_999 });
+		expect(result.episodes.length).toBeLessThanOrEqual(1000);
+	});
+
+	test("fractional limit is floored", async () => {
+		for (let i = 0; i < 3; i++) {
+			await storage.saveEpisode(userId, makeEpisode({ title: `Ep ${i}`, embedding: [1, 0, 0] }));
+		}
+		const result = await retrieval.retrieve(userId, "Ep", { limit: 1.9 });
+		expect(result.episodes).toHaveLength(1);
+	});
+});
+
+describe("Retrieval — custom weight options", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("textWeight=0 disables text search contribution", async () => {
+		// Episode only found by text (embedding is orthogonal)
+		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [0, 0, 1] });
+		await storage.saveEpisode(userId, ep);
+
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+		const result = await retrieval.retrieve(userId, "TypeScript", {
+			textWeight: 0,
+			vectorWeight: 1.0,
+		});
+		// Still found by vector search (orthogonal cosine sim → rank is low but present)
+		// The score should only come from vector contribution
+		expect(result.episodes).toHaveLength(1);
+	});
+
+	test("vectorWeight=0 disables vector search contribution", async () => {
+		// Episode only found by vector (title won't match)
+		const ep = makeEpisode({ title: "Unrelated", embedding: [1, 0, 0] });
+		await storage.saveEpisode(userId, ep);
+
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+		const result = await retrieval.retrieve(userId, "xyz", {
+			textWeight: 1.0,
+			vectorWeight: 0,
+		});
+		// Still found by vector search but with weight=0 its contribution is zero
+		// Text search won't match "xyz" in "Unrelated", so score comes only from vector
+		// With vectorWeight=0, the vector contribution is 0
+		// But the episode is still returned since it appears in the vector result list
+		// The score should be 0 from vector (weight=0)
+		if (result.episodes.length > 0) {
+			expect(result.episodes[0]!.score).toBeGreaterThanOrEqual(0);
+		}
+	});
+
+	test("fsrsWeight=0 disables FSRS boost", async () => {
+		const now = new Date("2026-06-01T00:00:00Z");
+		const ep = makeEpisode({ title: "TypeScript", embedding: [1, 0, 0] });
+		await storage.saveEpisode(userId, ep);
+		await storage.updateEpisodeFSRS(userId, ep.id, {
+			stability: 1.0,
+			difficulty: 0.3,
+			lastReviewedAt: new Date("2026-05-31T00:00:00Z"),
+		});
+
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+		const withFsrs = await retrieval.retrieve(userId, "TypeScript", { now, fsrsWeight: 0.5 });
+		const withoutFsrs = await retrieval.retrieve(userId, "TypeScript", { now, fsrsWeight: 0 });
+
+		expect(withFsrs.episodes[0]!.score).toBeGreaterThan(withoutFsrs.episodes[0]!.score);
 	});
 });

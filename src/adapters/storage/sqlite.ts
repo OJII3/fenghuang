@@ -17,7 +17,8 @@ function escapeLike(s: string): string {
 }
 
 function escapeFts5(query: string): string {
-	return `"${query.replaceAll('"', '""')}"`;
+	const sanitized = query.replaceAll("\0", "");
+	return `"${sanitized.replaceAll('"', '""')}"`;
 }
 
 function clampLimit(limit: number): number {

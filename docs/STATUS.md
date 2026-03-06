@@ -8,7 +8,7 @@
 
 - **M4: Retrieval サービス + ハイブリッド検索は完了**
 - M1〜M3 の全成果物に加え、ハイブリッド検索（テキスト + ベクトル）、RRF リランキング、FSRS retrievability ブーストが実装済み
-- テスト 311 件が全通過（`bun test`）
+- テスト 327 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
