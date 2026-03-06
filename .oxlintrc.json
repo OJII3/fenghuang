@@ -38,6 +38,9 @@
 
 		"@typescript-eslint/no-explicit-any": "error",
 		"@typescript-eslint/consistent-type-imports": "error",
+		"no-duplicate-imports": "off",
+		"no-await-in-loop": "off",
+		"max-lines": ["error", { "max": 350 }],
 		"@typescript-eslint/no-non-null-assertion": "error",
 		"@typescript-eslint/parameter-properties": "off"
 	},
@@ -50,7 +53,9 @@
 				"no-console": "off",
 				"init-declarations": "off",
 				"max-lines-per-function": "off",
-				"max-lines": "off"
+				"max-lines": "off",
+				"max-statements": "off",
+				"no-await-in-loop": "off"
 			}
 		}
 	]

@@ -6,13 +6,13 @@
 
 ## 2. 現在の真実（Project Truth）
 
-- **M1: Core ドメイン + In-memory adapter は完了**
-- ドメインエンティティ、FSRS 純粋関数、ポートインターフェース、In-memory adapter が実装済み
-- ユニットテスト 55 件が全通過（`bun test`）
+- **M2: Segmenter + EpisodicMemory + SQLite adapter + opencode adapter は完了**
+- M1 の Core ドメイン + In-memory adapter に加え、Core サービスと外部 adapter が実装済み
+- テスト 114 件が全通過（`bun test`）
+- `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
 - Linter は oxlint、Formatter は oxfmt を使用（biome ではない）
-- PR: https://github.com/OJII3/fenghuang/pull/2
 
 ## 2.5 PR レビュー基盤
 
@@ -31,39 +31,59 @@
 
 ## 4. M1 成果物
 
-| 項目 | ファイル | ステータス |
-|---|---|---|
-| Episode エンティティ | `src/core/domain/episode.ts` | 完了 |
-| SemanticFact エンティティ | `src/core/domain/semantic-fact.ts` | 完了 |
-| FSRSCard + 純粋関数 | `src/core/domain/fsrs.ts` | 完了 |
-| 共有型定義 | `src/core/domain/types.ts` | 完了 |
-| LLMPort | `src/ports/llm.ts` | 完了 |
-| StoragePort | `src/ports/storage.ts` | 完了 |
-| In-memory adapter | `src/adapters/storage/in-memory.ts` | 完了 |
-| Public API | `src/index.ts` | 完了 |
-| Episode テスト | `tests/core/domain/episode.test.ts` | 完了（9件） |
-| SemanticFact テスト | `tests/core/domain/semantic-fact.test.ts` | 完了（6件） |
-| FSRS テスト | `tests/core/domain/fsrs.test.ts` | 完了（15件） |
-| In-memory adapter テスト | `tests/adapters/storage/in-memory.test.ts` | 完了（25件） |
+| 項目                      | ファイル                                   | ステータス   |
+| ------------------------- | ------------------------------------------ | ------------ |
+| Episode エンティティ      | `src/core/domain/episode.ts`               | 完了         |
+| SemanticFact エンティティ | `src/core/domain/semantic-fact.ts`         | 完了         |
+| FSRSCard + 純粋関数       | `src/core/domain/fsrs.ts`                  | 完了         |
+| 共有型定義                | `src/core/domain/types.ts`                 | 完了         |
+| LLMPort                   | `src/ports/llm.ts`                         | 完了         |
+| StoragePort               | `src/ports/storage.ts`                     | 完了         |
+| In-memory adapter         | `src/adapters/storage/in-memory.ts`        | 完了         |
+| Public API                | `src/index.ts`                             | 完了         |
+| Episode テスト            | `tests/core/domain/episode.test.ts`        | 完了（9件）  |
+| SemanticFact テスト       | `tests/core/domain/semantic-fact.test.ts`  | 完了（6件）  |
+| FSRS テスト               | `tests/core/domain/fsrs.test.ts`           | 完了（15件） |
+| In-memory adapter テスト  | `tests/adapters/storage/in-memory.test.ts` | 完了（25件） |
 
-## 5. 直近タスク（M2）
+## 5. M2 成果物
 
-1. Segmenter の実装（LLMPort を使用したセグメント境界判定）
-2. EpisodicMemory サービスの実装
-3. SQLite StoragePort adapter の実装（bun:sqlite）
-4. opencode LLMPort adapter の実装
-5. 統合テストの作成
+| 項目                  | ファイル                                     | ステータス   |
+| --------------------- | -------------------------------------------- | ------------ |
+| SQLite StoragePort    | `src/adapters/storage/sqlite.ts`             | 完了         |
+| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`      | 完了（27件） |
+| Segmenter             | `src/core/segmenter.ts`                      | 完了         |
+| Segmenter テスト      | `tests/core/segmenter.test.ts`               | 完了（11件） |
+| EpisodicMemory        | `src/core/episodic.ts`                       | 完了         |
+| EpisodicMemory テスト | `tests/core/episodic.test.ts`                | 完了（15件） |
+| opencode LLM adapter  | `src/adapters/llm/opencode.ts`               | 完了         |
+| 統合テスト            | `tests/integration/segmenter-sqlite.test.ts` | 完了（6件）  |
+| Public API 更新       | `src/index.ts`                               | 完了         |
 
-## 6. ブロッカー
+### M2 設計上の決定
+
+1. **Embedding**: opencode SDK に embedding API がないため、`EmbedFn` をコンストラクタ注入する設計
+2. **opencode chatStructured**: SDK に `format` パラメータがないため、プロンプトで JSON 出力を指示し `schema.parse()` でバリデーション
+3. **SQLite 検索**: M2 では LIKE 検索で実装。FTS5 は M4（ハイブリッド検索）で導入予定
+4. **EpisodicMemory**: `StoragePort` のみに依存（`LLMPort` は不要）
+5. **Segmenter のフロー**: `addMessage()` → キュー追加 → 閾値チェック → LLM でセグメント判定 → Episode 生成・保存
+
+## 6. 直近タスク（M3）
+
+1. ConsolidationPipeline の実装（エピソード → セマンティックファクト変換）
+2. SemanticMemory サービスの実装
+3. Retrieval サービスの実装（エピソード + セマンティック統合検索）
+
+## 7. ブロッカー
 
 - なし
 
-## 7. リスクメモ
+## 8. リスクメモ
 
 1. bun:sqlite でベクトル検索をどう実現するか要調査（R1）
-2. opencode SDK の API 安定性を確認する必要あり（R2）
+2. opencode SDK の API 安定性を確認する必要あり（R2）— M2 で `@opencode-ai/sdk@^1.2.20` を採用
 
-## 8. 再開時コンテキスト
+## 9. 再開時コンテキスト
 
 以下の順序でドキュメントを読み込む:
 

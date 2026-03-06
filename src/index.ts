@@ -23,6 +23,15 @@ export { SURPRISE_VALUES } from "./core/domain/types.ts";
 // Re-export public types
 export type { LLMPort, Schema } from "./ports/llm.ts";
 export type { StoragePort } from "./ports/storage.ts";
+// Re-export core services
+export { Segmenter } from "./core/segmenter.ts";
+export type { SegmenterConfig, SegmentResult, SegmentationOutput } from "./core/segmenter.ts";
+export { EpisodicMemory } from "./core/episodic.ts";
+// Re-export adapters
+export { InMemoryStorageAdapter } from "./adapters/storage/in-memory.ts";
+export { SQLiteStorageAdapter } from "./adapters/storage/sqlite.ts";
+export { OpencodeLLMAdapter } from "./adapters/llm/opencode.ts";
+export type { EmbedFn, OpencodeLLMAdapterOptions } from "./adapters/llm/opencode.ts";
 
 /** Fenghuang instance — the main entry point */
 export interface Fenghuang {
@@ -44,7 +53,7 @@ export function createFenghuang(opts: CreateFenghuangOptions): Fenghuang {
 
 	return {
 		segmenter: new Segmenter(llm, storage),
-		episodic: new EpisodicMemory(llm, storage),
+		episodic: new EpisodicMemory(storage),
 		consolidation: new ConsolidationPipeline(llm, storage),
 		retrieval: new Retrieval(llm, storage),
 	};

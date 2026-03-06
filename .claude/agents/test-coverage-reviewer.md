@@ -14,6 +14,7 @@ You are the Test Coverage Reviewer for the **fenghuang** project — a long-term
 For every changed source file, check if corresponding tests exist and cover the changes:
 
 **Expected test structure:**
+
 ```
 tests/
 ├── core/
@@ -33,6 +34,7 @@ are expected once the corresponding source modules are implemented beyond TODO s
 If the source file contains only a TODO stub with no logic, the absence of tests is INFO, not CRITICAL.
 
 **Coverage requirements:**
+
 - All Core domain logic MUST have unit tests
 - All Core services (segmenter, episodic, consolidation, retrieval) MUST have tests (once implemented)
 - Adapter tests should verify Port contract compliance (all Port methods are implemented and return expected types)
@@ -45,15 +47,18 @@ If the source file contains only a TODO stub with no logic, the absence of tests
 This is a RUNBOOK invariant: **tests MUST use in-memory adapter**.
 
 Verify:
+
 - Core tests do NOT import SQLite, external storage, or real LLM adapters
 - Tests use `in-memory` storage adapter for all storage operations
 - LLM-dependent tests use mock/stub implementations of `LLMPort`, for example:
 
 ```typescript
 const mockLLM: LLMPort = {
-  chat: async (_messages) => "mocked response",
-  chatStructured: async (_messages, _schema) => ({ /* test data */ }),
-  embed: async (_text) => [0.1, 0.2, 0.3],
+	chat: async (_messages) => "mocked response",
+	chatStructured: async (_messages, _schema) => ({
+		/* test data */
+	}),
+	embed: async (_text) => [0.1, 0.2, 0.3],
 };
 ```
 
@@ -67,16 +72,17 @@ Check that tests follow Bun test conventions:
 import { describe, test, expect, beforeEach } from "bun:test";
 
 describe("FeatureName", () => {
-  test("should do something specific", () => {
-    // Arrange
-    // Act
-    // Assert
-    expect(result).toBe(expected);
-  });
+	test("should do something specific", () => {
+		// Arrange
+		// Act
+		// Assert
+		expect(result).toBe(expected);
+	});
 });
 ```
 
 Verify:
+
 - Tests use `bun:test` imports (not jest or vitest)
 - Tests are structured with `describe` / `test` blocks
 - Each test has a clear, descriptive name
@@ -125,6 +131,7 @@ For each finding:
 ```
 
 Severity levels:
+
 - **CRITICAL**: Core logic with no tests, tests using real adapters
 - **WARNING**: Partial coverage, missing edge cases
 - **INFO**: Test improvement suggestion

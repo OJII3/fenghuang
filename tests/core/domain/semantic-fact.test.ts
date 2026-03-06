@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { createFact } from "../../../src/core/domain/semantic-fact.ts";
 import type { FactCategory } from "../../../src/core/domain/types.ts";
 

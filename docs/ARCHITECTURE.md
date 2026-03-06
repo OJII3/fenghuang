@@ -76,11 +76,14 @@ src/
 
 ```typescript
 // src/ports/llm.ts
-export interface ChatMessage {
-	role: "system" | "user" | "assistant";
-	content: string;
+import type { ChatMessage } from "../core/domain/types.ts";
+
+/** Schema definition for structured output */
+export interface Schema<T> {
+	parse(data: unknown): T;
 }
 
+/** LLM Port — Core depends only on this interface */
 export interface LLMPort {
 	/** 自由形式のチャット応答 */
 	chat(messages: ChatMessage[]): Promise<string>;
@@ -126,59 +129,70 @@ export interface StoragePort {
 
 ### 6.1 Episode
 
-| フィールド     | 型              | 説明                             |
-| -------------- | --------------- | -------------------------------- |
-| id             | string        | UUID                             |
-| userId         | string        | ユーザー識別子                   |
-| title          | string        | エピソードのタイトル（LLM 生成） |
-| summary        | string        | エピソードの要約（LLM 生成）     |
-| messages       | ChatMessage[] | 元のメッセージ列                 |
-| embedding      | number[]      | summary の埋め込みベクトル       |
-| surprise       | number        | 驚きスコア（0.0 - 1.0）          |
-| stability      | number        | FSRS stability パラメータ        |
-| difficulty     | number        | FSRS difficulty パラメータ       |
-| startAt        | Date          | エピソード開始時刻               |
-| endAt          | Date          | エピソード終了時刻               |
-| createdAt      | Date          | 作成日時                         |
-| lastReviewedAt | `Date \| null`  | 最後にレビューされた日時 |
-| consolidatedAt | `Date \| null`  | 意味記憶に統合された日時 |
+| フィールド     | 型             | 説明                             |
+| -------------- | -------------- | -------------------------------- |
+| id             | string         | UUID                             |
+| userId         | string         | ユーザー識別子                   |
+| title          | string         | エピソードのタイトル（LLM 生成） |
+| summary        | string         | エピソードの要約（LLM 生成）     |
+| messages       | ChatMessage[]  | 元のメッセージ列                 |
+| embedding      | number[]       | summary の埋め込みベクトル       |
+| surprise       | number         | 驚きスコア（0.0 - 1.0）          |
+| stability      | number         | FSRS stability パラメータ        |
+| difficulty     | number         | FSRS difficulty パラメータ       |
+| startAt        | Date           | エピソード開始時刻               |
+| endAt          | Date           | エピソード終了時刻               |
+| createdAt      | Date           | 作成日時                         |
+| lastReviewedAt | `Date \| null` | 最後にレビューされた日時         |
+| consolidatedAt | `Date \| null` | 意味記憶に統合された日時         |
 
 ### 6.2 SemanticFact
 
 | フィールド        | 型             | 説明                    |
 | ----------------- | -------------- | ----------------------- |
-| id                | string       | UUID                    |
-| userId            | string       | ユーザー識別子          |
-| category          | FactCategory | 事実のカテゴリ          |
-| fact              | string       | 事実の内容              |
-| keywords          | string[]     | キーワード              |
-| sourceEpisodicIds | string[]     | 出典エピソード ID       |
-| embedding         | number[]     | fact の埋め込みベクトル |
-| validAt           | Date         | 有効開始日時            |
-| invalidAt         | `Date \| null` | 無効化日時 |
-| createdAt         | Date         | 作成日時                |
+| id                | string         | UUID                    |
+| userId            | string         | ユーザー識別子          |
+| category          | FactCategory   | 事実のカテゴリ          |
+| fact              | string         | 事実の内容              |
+| keywords          | string[]       | キーワード              |
+| sourceEpisodicIds | string[]       | 出典エピソード ID       |
+| embedding         | number[]       | fact の埋め込みベクトル |
+| validAt           | Date           | 有効開始日時            |
+| invalidAt         | `Date \| null` | 無効化日時              |
+| createdAt         | Date           | 作成日時                |
 
 ### 6.3 FSRSCard
 
 | フィールド     | 型             | 説明               |
 | -------------- | -------------- | ------------------ |
-| stability      | number | 記憶の安定性 |
-| difficulty     | number | 学習難易度   |
+| stability      | number         | 記憶の安定性       |
+| difficulty     | number         | 学習難易度         |
 | lastReviewedAt | `Date \| null` | 最後のレビュー日時 |
+
+### 6.4 ChatMessage
+
+```typescript
+// src/core/domain/types.ts
+export type MessageRole = "system" | "user" | "assistant";
+
+export interface ChatMessage {
+	role: MessageRole;
+	content: string;
+	timestamp?: Date;
+}
+```
 
 ## 7. 主要シーケンス
 
 ### 7.1 メッセージ追加 → セグメンテーション
 
-1. 呼び出し側が `addMessage(userId, message)` を呼ぶ
-2. メッセージキューに追加される
-3. キューのメッセージ数が閾値に達したらセグメンテーションを実行
-4. LLMPort.chatStructured() でセグメント境界と surprise を判定
-5. 境界で分割し、各セグメントについて:
-   a. LLMPort.chat() で title と summary を生成
-   b. LLMPort.embed() で embedding を生成
-   c. FSRS 初期パラメータを設定
-   d. StoragePort.saveEpisode() で保存
+1. `addMessage(userId, message)` を呼ぶ
+2. メッセージキューに追加
+3. softTrigger 到達 → LLM にセグメント判定を依頼（省略可能）
+   3'. hardTrigger 到達 → 強制セグメンテーション
+4. LLMPort.chatStructured() でセグメント境界、title、summary、surprise を一括判定
+5. 各セグメントについて LLMPort.embed() で embedding 生成、FSRS 初期化、StoragePort.saveEpisode()
+6. 処理済みメッセージをクリア、残りを再キューイング
 
 ### 7.2 意味記憶統合
 
@@ -216,8 +230,10 @@ tests/
 │   │   └── fsrs.test.ts
 │   ├── segmenter.test.ts
 │   ├── episodic.test.ts
-│   ├── consolidation.test.ts
-│   └── retrieval.test.ts
+│   ├── consolidation.test.ts  (M3予定)
+│   └── retrieval.test.ts      (M4予定)
+├── integration/
+│   └── segmenter-sqlite.test.ts
 └── adapters/
     └── storage/
         ├── sqlite.test.ts

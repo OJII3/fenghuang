@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { InMemoryStorageAdapter } from "../../../src/adapters/storage/in-memory.ts";
+import { SQLiteStorageAdapter } from "../../../src/adapters/storage/sqlite.ts";
 import { createEpisode } from "../../../src/core/domain/episode.ts";
 import { createFact } from "../../../src/core/domain/semantic-fact.ts";
 import type { ChatMessage } from "../../../src/core/domain/types.ts";
@@ -33,11 +33,15 @@ function makeFact(overrides: Record<string, unknown> = {}) {
 	});
 }
 
-describe("InMemoryStorage — episodic memory", () => {
-	let storage: InMemoryStorageAdapter;
+describe("SQLiteStorage — episodic memory", () => {
+	let storage: SQLiteStorageAdapter;
 
 	beforeEach(() => {
-		storage = new InMemoryStorageAdapter();
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
 	});
 
 	test("saveEpisode and getEpisodes", async () => {
@@ -98,7 +102,7 @@ describe("InMemoryStorage — episodic memory", () => {
 		const updated = await storage.getEpisodeById(ep.id);
 		expect(updated!.stability).toBe(5.0);
 		expect(updated!.difficulty).toBe(0.8);
-		expect(updated!.lastReviewedAt).toEqual(now);
+		expect(updated!.lastReviewedAt!.getTime()).toBe(now.getTime());
 	});
 
 	test("markEpisodeConsolidated sets consolidatedAt", async () => {
@@ -111,13 +115,40 @@ describe("InMemoryStorage — episodic memory", () => {
 		expect(updated!.consolidatedAt).not.toBeNull();
 		expect(updated!.consolidatedAt).toBeInstanceOf(Date);
 	});
+
+	test("preserves messages JSON", async () => {
+		const messages: ChatMessage[] = [
+			{ role: "user", content: "hello" },
+			{ role: "assistant", content: "hi there" },
+		];
+		const ep = makeEpisode({ messages });
+		await storage.saveEpisode(userId, ep);
+
+		const found = await storage.getEpisodeById(ep.id);
+		expect(found!.messages).toHaveLength(2);
+		expect(found!.messages[0]!.role).toBe("user");
+		expect(found!.messages[1]!.content).toBe("hi there");
+	});
+
+	test("preserves embedding array", async () => {
+		const embedding = [0.1, 0.2, 0.3, 0.4, 0.5];
+		const ep = makeEpisode({ embedding });
+		await storage.saveEpisode(userId, ep);
+
+		const found = await storage.getEpisodeById(ep.id);
+		expect(found!.embedding).toEqual(embedding);
+	});
 });
 
-describe("InMemoryStorage — semantic memory", () => {
-	let storage: InMemoryStorageAdapter;
+describe("SQLiteStorage — semantic memory", () => {
+	let storage: SQLiteStorageAdapter;
 
 	beforeEach(() => {
-		storage = new InMemoryStorageAdapter();
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
 	});
 
 	test("saveFact and getFacts", async () => {
@@ -171,11 +202,15 @@ describe("InMemoryStorage — semantic memory", () => {
 	});
 });
 
-describe("InMemoryStorage — message queue", () => {
-	let storage: InMemoryStorageAdapter;
+describe("SQLiteStorage — message queue", () => {
+	let storage: SQLiteStorageAdapter;
 
 	beforeEach(() => {
-		storage = new InMemoryStorageAdapter();
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
 	});
 
 	test("pushMessage and getMessageQueue", async () => {
@@ -209,13 +244,53 @@ describe("InMemoryStorage — message queue", () => {
 		const queue = await storage.getMessageQueue(userId);
 		expect(queue).toHaveLength(0);
 	});
+
+	test("preserves message timestamp through round-trip", async () => {
+		const ts = new Date("2026-03-01T12:00:00Z");
+		await storage.pushMessage(userId, { role: "user", content: "timed", timestamp: ts });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.timestamp).toBeInstanceOf(Date);
+		expect(queue[0]!.timestamp!.getTime()).toBe(ts.getTime());
+	});
+
+	test("message without timestamp round-trips correctly", async () => {
+		await storage.pushMessage(userId, { role: "user", content: "no time" });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.timestamp).toBeUndefined();
+	});
 });
 
-describe("InMemoryStorage — search episodes", () => {
-	let storage: InMemoryStorageAdapter;
+describe("SQLiteStorage — updateFact edge cases", () => {
+	let storage: SQLiteStorageAdapter;
 
 	beforeEach(() => {
-		storage = new InMemoryStorageAdapter();
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("updateFact on nonexistent fact does not throw", async () => {
+		await expect(
+			storage.updateFact("nonexistent-id", { fact: "Updated fact" }),
+		).resolves.toBeUndefined();
+	});
+});
+
+describe("SQLiteStorage — search episodes", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
 	});
 
 	test("matches title", async () => {
@@ -262,11 +337,15 @@ describe("InMemoryStorage — search episodes", () => {
 	});
 });
 
-describe("InMemoryStorage — search facts", () => {
-	let storage: InMemoryStorageAdapter;
+describe("SQLiteStorage — search facts", () => {
+	let storage: SQLiteStorageAdapter;
 
 	beforeEach(() => {
-		storage = new InMemoryStorageAdapter();
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
 	});
 
 	test("matches fact content", async () => {
