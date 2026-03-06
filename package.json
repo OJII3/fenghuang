@@ -13,7 +13,8 @@
 		"check": "oxlint --deny-warnings . && oxfmt --check . && tsc --noEmit"
 	},
 	"dependencies": {
-		"@opencode-ai/sdk": "^1.2.20"
+		"@opencode-ai/sdk": "^1.2.20",
+		"ai": "^6.0.116"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

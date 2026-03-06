@@ -2,6 +2,7 @@ import type { OpencodeClient } from "@opencode-ai/sdk/client";
 
 import type { ChatMessage } from "../../core/domain/types.ts";
 import type { LLMPort, Schema } from "../../ports/llm.ts";
+import { JSON_INSTRUCTION, cleanJsonResponse } from "./utils.ts";
 
 /** Embedding function type — injected from outside since opencode has no embedding API */
 export type EmbedFn = (text: string) => Promise<number[]>;
@@ -49,7 +50,7 @@ export class OpencodeLLMAdapter implements LLMPort {
 
 	async chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T> {
 		const { system, userText } = formatMessages(messages);
-		const jsonPrompt = `${userText}\n\nIMPORTANT: Respond ONLY with valid JSON. No markdown, no code fences, no explanation.`;
+		const jsonPrompt = `${userText}\n\n${JSON_INSTRUCTION}`;
 
 		const response = await this.client.session.prompt({
 			path: { id: this.sessionId },
@@ -65,8 +66,7 @@ export class OpencodeLLMAdapter implements LLMPort {
 		}
 
 		const text = extractTextFromParts(response.data?.parts ?? []);
-		const parsed: unknown = JSON.parse(cleanJsonResponse(text));
-		return schema.parse(parsed);
+		return schema.parse(parseJsonSafe(text));
 	}
 
 	async embed(text: string): Promise<number[]> {
@@ -98,21 +98,19 @@ function formatMessages(messages: ChatMessage[]): { system: string | undefined; 
 	};
 }
 
+/** Parse JSON from LLM response text, throwing a sanitized error on failure */
+function parseJsonSafe(text: string): unknown {
+	try {
+		return JSON.parse(cleanJsonResponse(text));
+	} catch {
+		throw new Error("OpencodeLLMAdapter: LLM response was not valid JSON");
+	}
+}
+
 /** Extract text content from response parts */
 function extractTextFromParts(parts: { type: string; text?: string }[]): string {
 	return parts
 		.filter((p) => p.type === "text" && p.text)
 		.map((p) => p.text ?? "")
 		.join("");
-}
-
-/** Clean LLM response that may contain markdown code fences */
-function cleanJsonResponse(text: string): string {
-	const trimmed = text.trim();
-	// Remove ```json ... ``` wrapper if present
-	const fenceMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/);
-	if (fenceMatch?.[1]) {
-		return fenceMatch[1].trim();
-	}
-	return trimmed;
 }
