@@ -8,7 +8,7 @@
 
 - **M2: Segmenter + EpisodicMemory + SQLite adapter + opencode adapter + Vercel AI adapter は完了**
 - M1 の Core ドメイン + In-memory adapter に加え、Core サービスと外部 adapter が実装済み
-- テスト 114 件が全通過（`bun test`）
+- テスト 148 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -51,16 +51,18 @@
 | 項目                  | ファイル                                     | ステータス   |
 | --------------------- | -------------------------------------------- | ------------ |
 | SQLite StoragePort    | `src/adapters/storage/sqlite.ts`             | 完了         |
-| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`      | 完了（27件） |
+| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`      | 完了（30件） |
 | Segmenter             | `src/core/segmenter.ts`                      | 完了         |
-| Segmenter テスト      | `tests/core/segmenter.test.ts`               | 完了（11件） |
+| Segmenter テスト      | `tests/core/segmenter.test.ts`               | 完了（17件） |
 | EpisodicMemory        | `src/core/episodic.ts`                       | 完了         |
-| EpisodicMemory テスト | `tests/core/episodic.test.ts`                | 完了（15件） |
+| EpisodicMemory テスト | `tests/core/episodic.test.ts`                | 完了（16件） |
 | opencode LLM adapter  | `src/adapters/llm/opencode.ts`               | 完了         |
 | 統合テスト            | `tests/integration/segmenter-sqlite.test.ts` | 完了（6件）  |
 | Public API 更新       | `src/index.ts`                               | 完了         |
 | Vercel AI LLM adapter | `src/adapters/llm/vercel-ai.ts`              | 完了         |
 | Vercel AI テスト      | `tests/adapters/llm/vercel-ai.test.ts`       | 完了（14件） |
+| opencode テスト       | `tests/adapters/llm/opencode.test.ts`        | 完了（9件）  |
+| Public API テスト     | `tests/index.test.ts`                        | 完了（1件）  |
 
 ### M2 設計上の決定
 

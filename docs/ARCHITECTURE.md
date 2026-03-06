@@ -235,10 +235,14 @@ tests/
 │   └── retrieval.test.ts      (M4予定)
 ├── integration/
 │   └── segmenter-sqlite.test.ts
-└── adapters/
-    └── storage/
-        ├── sqlite.test.ts
-        └── in-memory.test.ts
+├── adapters/
+│   ├── llm/
+│   │   ├── opencode.test.ts
+│   │   └── vercel-ai.test.ts
+│   └── storage/
+│       ├── sqlite.test.ts
+│       └── in-memory.test.ts
+└── index.test.ts
 ```
 
 ## 10. 設計上の決定
