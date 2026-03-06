@@ -70,7 +70,8 @@ src/
 │       ├── sqlite.ts       # SQLite adapter（bun:sqlite）
 │       ├── sqlite-rows.ts  # Row 型定義 + 行変換関数
 │       ├── in-memory.ts    # In-memory adapter（テスト用）
-│       └── parse-helpers.ts # JSON パース・バリデーションヘルパー
+│       ├── parse-helpers.ts # JSON パース・バリデーションヘルパー
+│       └── vector-math.ts  # コサイン類似度（Adapter 共有ユーティリティ）
 │
 └── index.ts                 # Public API + DI
 ```
@@ -128,9 +129,17 @@ export interface StoragePort {
 	getMessageQueue(userId: string): Promise<ChatMessage[]>;
 	clearMessageQueue(userId: string): Promise<void>;
 
-	// 検索
+	// テキスト検索
 	searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]>;
 	searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]>;
+
+	// ベクトル検索（コサイン類似度降順でソート済み）
+	searchEpisodesByEmbedding(userId: string, embedding: number[], limit: number): Promise<Episode[]>;
+	searchFactsByEmbedding(
+		userId: string,
+		embedding: number[],
+		limit: number,
+	): Promise<SemanticFact[]>;
 }
 ```
 
@@ -218,13 +227,18 @@ export interface ChatMessage {
    - Invalidate: `StoragePort.invalidateFact()`
      d. `StoragePort.markEpisodeConsolidated()` で統合済みマーク
 
-### 7.3 記憶検索
+### 7.3 記憶検索（ハイブリッド検索）
 
-1. 呼び出し側が `retrieve(userId, query)` を呼ぶ
-2. StoragePort.searchEpisodes() + searchFacts() で候補を取得
-3. RRF でスコアを統合
-4. エピソード記憶は FSRS retrievability で追加リランキング
-5. 上位 N 件を返却
+1. 呼び出し側が `retrieve(userId, query, options?)` を呼ぶ
+2. `LLMPort.embed(query)` でクエリ埋め込みベクトルを生成
+3. 4 つの検索を並列実行:
+   - `StoragePort.searchEpisodes()` — テキスト検索（FTS5/LIKE）
+   - `StoragePort.searchFacts()` — テキスト検索（FTS5/LIKE）
+   - `StoragePort.searchEpisodesByEmbedding()` — ベクトル検索（コサイン類似度）
+   - `StoragePort.searchFactsByEmbedding()` — ベクトル検索（コサイン類似度）
+4. Reciprocal Rank Fusion（RRF, k=60）でテキスト/ベクトルの 2 ランキングを統合
+5. エピソードのみ: FSRS `retrievability()` スコアで追加ブースト（デフォルト重み 0.5）
+6. 上位 N 件を `RetrievalResult`（`ScoredEpisode[]` + `ScoredFact[]`）として返却
 
 ## 8. エラーハンドリング
 
@@ -246,7 +260,7 @@ tests/
 │   ├── episodic.test.ts
 │   ├── consolidation.test.ts
 │   ├── semantic-memory.test.ts
-│   └── retrieval.test.ts      (M4予定)
+│   └── retrieval.test.ts
 ├── integration/
 │   └── segmenter-sqlite.test.ts
 ├── adapters/
@@ -256,7 +270,8 @@ tests/
 │   └── storage/
 │       ├── sqlite.test.ts
 │       ├── in-memory.test.ts
-│       └── parse-helpers.test.ts
+│       ├── parse-helpers.test.ts
+│       └── vector-math.test.ts
 └── index.test.ts
 ```
 

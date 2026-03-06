@@ -2,13 +2,13 @@
 
 ## 1. 最終更新
 
-2026-03-06 / Claude
+2026-03-07 / Claude
 
 ## 2. 現在の真実（Project Truth）
 
-- **M3: ConsolidationPipeline + SemanticMemory は完了**
-- M1 の Core ドメイン + In-memory adapter、M2 の Segmenter + EpisodicMemory + SQLite + Vercel AI adapter に加え、意味記憶統合パイプラインが実装済み
-- テスト 269 件が全通過（`bun test`）
+- **M4: Retrieval サービス + ハイブリッド検索は完了**
+- M1〜M3 の全成果物に加え、ハイブリッド検索（テキスト + ベクトル）、RRF リランキング、FSRS retrievability ブーストが実装済み
+- テスト 311 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -90,23 +90,41 @@
 3. **スキーマバリデーション**: Segmenter と同じ `Schema<T>` パターンを使用。アクション別に `existingFactId` の必須チェックを実施
 4. **逐次処理**: エピソード間で事実の状態が変わるため、各エピソードを逐次処理し、毎回既存事実を再取得
 
-## 6.5 直近タスク（M4）
+## 7. M4 成果物
 
-1. Retrieval サービスの実装（エピソード + セマンティック統合検索、RRF リランキング）
-2. FTS5 による全文検索の導入
-3. ハイブリッド検索（ベクトル + テキスト）の実装
+| 項目                       | ファイル                                     | ステータス   |
+| -------------------------- | -------------------------------------------- | ------------ |
+| ベクトル数学ユーティリティ | `src/adapters/storage/vector-math.ts`        | 完了         |
+| ベクトル数学テスト         | `tests/adapters/storage/vector-math.test.ts` | 完了（8件）  |
+| StoragePort 拡張           | `src/ports/storage.ts`                       | 完了         |
+| In-memory ベクトル検索     | `src/adapters/storage/in-memory.ts`          | 完了         |
+| SQLite ベクトル検索        | `src/adapters/storage/sqlite.ts`             | 完了         |
+| SQLite FTS5 全文検索       | `src/adapters/storage/sqlite.ts`             | 完了         |
+| Retrieval サービス         | `src/core/retrieval.ts`                      | 完了         |
+| Retrieval テスト           | `tests/core/retrieval.test.ts`               | 完了（14件） |
+| In-memory テスト追加       | `tests/adapters/storage/in-memory.test.ts`   | 完了（8件）  |
+| SQLite テスト追加          | `tests/adapters/storage/sqlite.test.ts`      | 完了（14件） |
+| Public API 更新            | `src/index.ts`                               | 完了         |
 
-## 6.6 技術的負債
+### M4 設計上の決定
 
-- なし（`sqlite.ts` の Row 型 + 変換関数は `sqlite-rows.ts` に分離済み、PR #9 のレビュー指摘 11 件は修正済み）
+1. **ベクトル検索**: bun:sqlite にベクトル拡張がないため、StoragePort に `searchEpisodesByEmbedding`/`searchFactsByEmbedding` を追加し、Adapter 内でコサイン類似度を計算。将来 pgvector 等に差し替え可能
+2. **FTS5**: エピソード（title, summary）と事実（fact, keywords）に FTS5 仮想テーブルを追加。INSERT/DELETE トリガーで同期。FTS5 MATCH + bm25() でランキング、失敗時は LIKE にフォールバック
+3. **RRF**: Reciprocal Rank Fusion（k=60, TREC 標準値）でテキスト/ベクトルの 2 ランキングを統合
+4. **FSRS ブースト**: エピソードのみ retrievability スコアで追加加算（fsrsWeight=0.5）
+5. **cosine similarity は Adapter 層**: Core ドメインの関心事ではないため `src/adapters/storage/vector-math.ts` に配置
 
-## 7. ブロッカー
+## 7.5 技術的負債
 
 - なし
 
-## 8. リスクメモ
+## 8. ブロッカー
 
-1. bun:sqlite でベクトル検索をどう実現するか要調査（R1）
+- なし
+
+## 8.1 リスクメモ
+
+1. ~~bun:sqlite でベクトル検索をどう実現するか要調査（R1）~~ → M4 で解決（Adapter 内コサイン類似度計算）
 
 ## 8.5 セキュリティレビュー指摘事項
 
