@@ -3,6 +3,7 @@ import type { FSRSCard } from "../../core/domain/fsrs.ts";
 import type { SemanticFact } from "../../core/domain/semantic-fact.ts";
 import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
+import { cosineSimilarity } from "./vector-math.ts";
 
 /** In-memory storage adapter for testing */
 export class InMemoryStorageAdapter implements StoragePort {
@@ -137,5 +138,35 @@ export class InMemoryStorageAdapter implements StoragePort {
 						f.keywords.some((k) => k.toLowerCase().includes(lowerQuery))),
 			)
 			.slice(0, safeLim);
+	}
+
+	// --- Vector search ---
+
+	async searchEpisodesByEmbedding(
+		userId: string,
+		embedding: number[],
+		limit: number,
+	): Promise<Episode[]> {
+		const safeLim = Math.max(1, Math.min(limit, 1000));
+		return [...this.episodes.values()]
+			.filter((e) => e.userId === userId)
+			.map((e) => ({ episode: e, similarity: cosineSimilarity(embedding, e.embedding) }))
+			.toSorted((a, b) => b.similarity - a.similarity)
+			.slice(0, safeLim)
+			.map((r) => r.episode);
+	}
+
+	async searchFactsByEmbedding(
+		userId: string,
+		embedding: number[],
+		limit: number,
+	): Promise<SemanticFact[]> {
+		const safeLim = Math.max(1, Math.min(limit, 1000));
+		return [...this.facts.values()]
+			.filter((f) => f.userId === userId && f.invalidAt === null)
+			.map((f) => ({ fact: f, similarity: cosineSimilarity(embedding, f.embedding) }))
+			.toSorted((a, b) => b.similarity - a.similarity)
+			.slice(0, safeLim)
+			.map((r) => r.fact);
 	}
 }

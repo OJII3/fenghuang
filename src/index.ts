@@ -36,6 +36,13 @@ export type {
 	ExtractedFact,
 } from "./core/consolidation.ts";
 export { SemanticMemory } from "./core/semantic-memory.ts";
+export { Retrieval, reciprocalRankFusion } from "./core/retrieval.ts";
+export type {
+	RetrievalOptions,
+	RetrievalResult,
+	ScoredEpisode,
+	ScoredFact,
+} from "./core/retrieval.ts";
 // Re-export adapters
 export { InMemoryStorageAdapter } from "./adapters/storage/in-memory.ts";
 export { SQLiteStorageAdapter } from "./adapters/storage/sqlite.ts";

@@ -450,6 +450,98 @@ describe("SQLiteStorage — search episodes", () => {
 	});
 });
 
+describe("SQLiteStorage — vector search episodes", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("returns episodes sorted by cosine similarity", async () => {
+		const ep1 = makeEpisode({ title: "Close", embedding: [1, 0, 0] });
+		const ep2 = makeEpisode({ title: "Closer", embedding: [0.9, 0.1, 0] });
+		const ep3 = makeEpisode({ title: "Far", embedding: [0, 0, 1] });
+		await storage.saveEpisode(userId, ep1);
+		await storage.saveEpisode(userId, ep2);
+		await storage.saveEpisode(userId, ep3);
+
+		const results = await storage.searchEpisodesByEmbedding(userId, [1, 0, 0], 10);
+		expect(results).toHaveLength(3);
+		expect(results[0]!.title).toBe("Close");
+		expect(results[1]!.title).toBe("Closer");
+		expect(results[2]!.title).toBe("Far");
+	});
+
+	test("respects limit", async () => {
+		for (let i = 0; i < 5; i++) {
+			await storage.saveEpisode(userId, makeEpisode({ embedding: [i, 1, 0] }));
+		}
+		const results = await storage.searchEpisodesByEmbedding(userId, [1, 0, 0], 2);
+		expect(results).toHaveLength(2);
+	});
+
+	test("filters by userId", async () => {
+		await storage.saveEpisode("user-1", makeEpisode({ userId: "user-1", embedding: [1, 0, 0] }));
+		await storage.saveEpisode("user-2", makeEpisode({ userId: "user-2", embedding: [1, 0, 0] }));
+
+		const results = await storage.searchEpisodesByEmbedding("user-1", [1, 0, 0], 10);
+		expect(results).toHaveLength(1);
+	});
+});
+
+describe("SQLiteStorage — vector search facts", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("returns facts sorted by cosine similarity", async () => {
+		const f1 = makeFact({ fact: "Close", embedding: [1, 0, 0] });
+		const f2 = makeFact({ fact: "Far", embedding: [0, 0, 1] });
+		await storage.saveFact(userId, f1);
+		await storage.saveFact(userId, f2);
+
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0, 0], 10);
+		expect(results).toHaveLength(2);
+		expect(results[0]!.fact).toBe("Close");
+		expect(results[1]!.fact).toBe("Far");
+	});
+
+	test("excludes invalidated facts", async () => {
+		const f = makeFact({ embedding: [1, 0, 0] });
+		await storage.saveFact(userId, f);
+		await storage.invalidateFact(userId, f.id, new Date());
+
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0, 0], 10);
+		expect(results).toHaveLength(0);
+	});
+
+	test("respects limit", async () => {
+		for (let i = 0; i < 5; i++) {
+			await storage.saveFact(userId, makeFact({ embedding: [i, 1, 0] }));
+		}
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0, 0], 2);
+		expect(results).toHaveLength(2);
+	});
+
+	test("filters by userId", async () => {
+		await storage.saveFact("user-1", makeFact({ userId: "user-1", embedding: [1, 0, 0] }));
+		await storage.saveFact("user-2", makeFact({ userId: "user-2", embedding: [1, 0, 0] }));
+
+		const results = await storage.searchFactsByEmbedding("user-1", [1, 0, 0], 10);
+		expect(results).toHaveLength(1);
+	});
+});
+
 describe("SQLiteStorage — search facts", () => {
 	let storage: SQLiteStorageAdapter;
 
@@ -498,6 +590,90 @@ describe("SQLiteStorage — search facts", () => {
 	});
 });
 
+describe("SQLiteStorage — FTS5 episodes", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("FTS5 matches token in title", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "TypeScript Discussion" }));
+		await storage.saveEpisode(userId, makeEpisode({ title: "Python Tutorial" }));
+
+		const results = await storage.searchEpisodes(userId, "TypeScript", 10);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.title).toBe("TypeScript Discussion");
+	});
+
+	test("FTS5 matches token in summary", async () => {
+		await storage.saveEpisode(
+			userId,
+			makeEpisode({ title: "Chat", summary: "Discussed Bun runtime performance" }),
+		);
+
+		const results = await storage.searchEpisodes(userId, "Bun", 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("FTS5 BM25 ranking orders by relevance", async () => {
+		// Episode with "TypeScript" in title (more relevant)
+		await storage.saveEpisode(
+			userId,
+			makeEpisode({ title: "TypeScript Guide", summary: "A guide" }),
+		);
+		// Episode with "TypeScript" in summary only
+		await storage.saveEpisode(
+			userId,
+			makeEpisode({ title: "General Chat", summary: "Mentioned TypeScript briefly" }),
+		);
+
+		const results = await storage.searchEpisodes(userId, "TypeScript", 10);
+		expect(results).toHaveLength(2);
+	});
+});
+
+describe("SQLiteStorage — FTS5 facts", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("FTS5 matches token in fact", async () => {
+		await storage.saveFact(userId, makeFact({ fact: "Prefers dark mode" }));
+		await storage.saveFact(userId, makeFact({ fact: "Uses light theme" }));
+
+		const results = await storage.searchFacts(userId, "dark", 10);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.fact).toBe("Prefers dark mode");
+	});
+
+	test("FTS5 matches in keywords JSON", async () => {
+		await storage.saveFact(userId, makeFact({ keywords: ["vim", "editor"] }));
+
+		const results = await storage.searchFacts(userId, "vim", 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("FTS5 excludes invalidated facts", async () => {
+		const fact = makeFact({ fact: "Old preference dark mode" });
+		await storage.saveFact(userId, fact);
+		await storage.invalidateFact(userId, fact.id, new Date());
+
+		const results = await storage.searchFacts(userId, "dark", 10);
+		expect(results).toHaveLength(0);
+	});
+});
+
 describe("SQLiteStorage — search limit clamping", () => {
 	let storage: SQLiteStorageAdapter;
 
@@ -530,6 +706,18 @@ describe("SQLiteStorage — search limit clamping", () => {
 	test("searchFacts clamps excessively large limit to 1000", async () => {
 		await storage.saveFact(userId, makeFact({ fact: "Test fact" }));
 		const results = await storage.searchFacts(userId, "test", 99_999);
+		expect(results).toHaveLength(1);
+	});
+
+	test("searchEpisodesByEmbedding clamps negative limit to 1", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ embedding: [1, 0] }));
+		const results = await storage.searchEpisodesByEmbedding(userId, [1, 0], -5);
+		expect(results).toHaveLength(1);
+	});
+
+	test("searchFactsByEmbedding clamps negative limit to 1", async () => {
+		await storage.saveFact(userId, makeFact({ embedding: [1, 0] }));
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0], -5);
 		expect(results).toHaveLength(1);
 	});
 });
@@ -579,5 +767,35 @@ describe("SQLiteStorage — escapeLike wildcards", () => {
 		const results = await storage.searchEpisodes(userId, String.raw`path\to`, 10);
 		expect(results).toHaveLength(1);
 		expect(results[0]!.title).toBe(String.raw`path\to\file`);
+	});
+});
+
+describe("SQLiteStorage — FTS5 special character fallback", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("searchEpisodes handles query with double quotes gracefully", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: 'Said "hello" today' }));
+		const results = await storage.searchEpisodes(userId, '"hello"', 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("searchFacts handles query with special FTS5 operators", async () => {
+		await storage.saveFact(userId, makeFact({ fact: "Uses AND logic often" }));
+		const results = await storage.searchFacts(userId, "AND", 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("searchEpisodes strips NUL bytes from query", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "NULtest episode" }));
+		const results = await storage.searchEpisodes(userId, "NUL\0test", 10);
+		expect(results).toHaveLength(1);
 	});
 });

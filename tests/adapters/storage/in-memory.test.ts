@@ -410,6 +410,102 @@ describe("InMemoryStorage — search episodes", () => {
 	});
 });
 
+describe("InMemoryStorage — vector search episodes", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("returns episodes sorted by cosine similarity", async () => {
+		const ep1 = makeEpisode({ title: "Close", embedding: [1, 0, 0] });
+		const ep2 = makeEpisode({ title: "Closer", embedding: [0.9, 0.1, 0] });
+		const ep3 = makeEpisode({ title: "Far", embedding: [0, 0, 1] });
+		await storage.saveEpisode(userId, ep1);
+		await storage.saveEpisode(userId, ep2);
+		await storage.saveEpisode(userId, ep3);
+
+		const results = await storage.searchEpisodesByEmbedding(userId, [1, 0, 0], 10);
+		expect(results).toHaveLength(3);
+		expect(results[0]!.title).toBe("Close");
+		expect(results[1]!.title).toBe("Closer");
+		expect(results[2]!.title).toBe("Far");
+	});
+
+	test("respects limit", async () => {
+		for (let i = 0; i < 5; i++) {
+			await storage.saveEpisode(userId, makeEpisode({ embedding: [i, 1, 0] }));
+		}
+		const results = await storage.searchEpisodesByEmbedding(userId, [1, 0, 0], 2);
+		expect(results).toHaveLength(2);
+	});
+
+	test("filters by userId", async () => {
+		await storage.saveEpisode("user-1", makeEpisode({ userId: "user-1", embedding: [1, 0, 0] }));
+		await storage.saveEpisode("user-2", makeEpisode({ userId: "user-2", embedding: [1, 0, 0] }));
+
+		const results = await storage.searchEpisodesByEmbedding("user-1", [1, 0, 0], 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("clamps negative limit to 1", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ embedding: [1, 0, 0] }));
+		const results = await storage.searchEpisodesByEmbedding(userId, [1, 0, 0], -5);
+		expect(results).toHaveLength(1);
+	});
+});
+
+describe("InMemoryStorage — vector search facts", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("returns facts sorted by cosine similarity", async () => {
+		const f1 = makeFact({ fact: "Close", embedding: [1, 0, 0] });
+		const f2 = makeFact({ fact: "Far", embedding: [0, 0, 1] });
+		await storage.saveFact(userId, f1);
+		await storage.saveFact(userId, f2);
+
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0, 0], 10);
+		expect(results).toHaveLength(2);
+		expect(results[0]!.fact).toBe("Close");
+		expect(results[1]!.fact).toBe("Far");
+	});
+
+	test("excludes invalidated facts", async () => {
+		const f = makeFact({ embedding: [1, 0, 0] });
+		await storage.saveFact(userId, f);
+		await storage.invalidateFact(userId, f.id, new Date());
+
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0, 0], 10);
+		expect(results).toHaveLength(0);
+	});
+
+	test("respects limit", async () => {
+		for (let i = 0; i < 5; i++) {
+			await storage.saveFact(userId, makeFact({ embedding: [i, 1, 0] }));
+		}
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0, 0], 2);
+		expect(results).toHaveLength(2);
+	});
+
+	test("filters by userId", async () => {
+		await storage.saveFact("user-1", makeFact({ userId: "user-1", embedding: [1, 0, 0] }));
+		await storage.saveFact("user-2", makeFact({ userId: "user-2", embedding: [1, 0, 0] }));
+
+		const results = await storage.searchFactsByEmbedding("user-1", [1, 0, 0], 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("clamps negative limit to 1", async () => {
+		await storage.saveFact(userId, makeFact({ embedding: [1, 0, 0] }));
+		const results = await storage.searchFactsByEmbedding(userId, [1, 0, 0], -5);
+		expect(results).toHaveLength(1);
+	});
+});
+
 describe("InMemoryStorage — search facts", () => {
 	let storage: InMemoryStorageAdapter;
 
