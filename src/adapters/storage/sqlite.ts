@@ -5,20 +5,18 @@ import type { FSRSCard } from "../../core/domain/fsrs.ts";
 import type { SemanticFact } from "../../core/domain/semantic-fact.ts";
 import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
+import {
+	parseJson,
+	validateEmbedding,
+	validateMessages,
+	validateStringArray,
+} from "./parse-helpers.ts";
 
 /* eslint-disable unicorn/prefer-string-raw -- backslash-heavy escaping is clearer with regular strings */
 function escapeLike(s: string): string {
 	return s.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
 }
 /* eslint-enable unicorn/prefer-string-raw */
-
-function parseJson<T>(raw: string, field: string): T {
-	try {
-		return JSON.parse(raw) as T;
-	} catch {
-		throw new Error(`Failed to parse ${field}: ${raw.slice(0, 100)}`);
-	}
-}
 
 /** SQLite storage adapter using bun:sqlite */
 export class SQLiteStorageAdapter implements StoragePort {
@@ -84,8 +82,10 @@ export class SQLiteStorageAdapter implements StoragePort {
 		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)`);
 	}
 
-	// _userId is required by StoragePort interface; episode.userId is used for the actual insert
-	async saveEpisode(_userId: string, episode: Episode): Promise<void> {
+	async saveEpisode(userId: string, episode: Episode): Promise<void> {
+		if (episode.userId !== userId) {
+			throw new Error("episode.userId does not match userId");
+		}
 		this.db
 			.prepare(
 				`INSERT INTO episodes (id, user_id, title, summary, messages, embedding, surprise, stability, difficulty, start_at, end_at, created_at, last_reviewed_at, consolidated_at)
@@ -116,10 +116,10 @@ export class SQLiteStorageAdapter implements StoragePort {
 		return rows.map((r) => rowToEpisode(r));
 	}
 
-	async getEpisodeById(episodeId: string): Promise<Episode | null> {
+	async getEpisodeById(userId: string, episodeId: string): Promise<Episode | null> {
 		const row = this.db
-			.prepare("SELECT * FROM episodes WHERE id = ?")
-			.get(episodeId) as EpisodeRow | null;
+			.prepare("SELECT * FROM episodes WHERE id = ? AND user_id = ?")
+			.get(episodeId, userId) as EpisodeRow | null;
 		return row ? rowToEpisode(row) : null;
 	}
 
@@ -130,22 +130,30 @@ export class SQLiteStorageAdapter implements StoragePort {
 		return rows.map((r) => rowToEpisode(r));
 	}
 
-	async updateEpisodeFSRS(episodeId: string, card: FSRSCard): Promise<void> {
+	async updateEpisodeFSRS(userId: string, episodeId: string, card: FSRSCard): Promise<void> {
 		this.db
 			.prepare(
-				"UPDATE episodes SET stability = ?, difficulty = ?, last_reviewed_at = ? WHERE id = ?",
+				"UPDATE episodes SET stability = ?, difficulty = ?, last_reviewed_at = ? WHERE id = ? AND user_id = ?",
 			)
-			.run(card.stability, card.difficulty, card.lastReviewedAt?.getTime() ?? null, episodeId);
+			.run(
+				card.stability,
+				card.difficulty,
+				card.lastReviewedAt?.getTime() ?? null,
+				episodeId,
+				userId,
+			);
 	}
 
-	async markEpisodeConsolidated(episodeId: string): Promise<void> {
+	async markEpisodeConsolidated(userId: string, episodeId: string): Promise<void> {
 		this.db
-			.prepare("UPDATE episodes SET consolidated_at = ? WHERE id = ?")
-			.run(Date.now(), episodeId);
+			.prepare("UPDATE episodes SET consolidated_at = ? WHERE id = ? AND user_id = ?")
+			.run(Date.now(), episodeId, userId);
 	}
 
-	// _userId is required by StoragePort interface; fact.userId is used for the actual insert
-	async saveFact(_userId: string, fact: SemanticFact): Promise<void> {
+	async saveFact(userId: string, fact: SemanticFact): Promise<void> {
+		if (fact.userId !== userId) {
+			throw new Error("fact.userId does not match userId");
+		}
 		this.db
 			.prepare(
 				`INSERT INTO semantic_facts (id, user_id, category, fact, keywords, source_episodic_ids, embedding, valid_at, invalid_at, created_at)
@@ -181,26 +189,24 @@ export class SQLiteStorageAdapter implements StoragePort {
 		return rows.map((r) => rowToFact(r));
 	}
 
-	async invalidateFact(factId: string, invalidAt: Date): Promise<void> {
+	async invalidateFact(userId: string, factId: string, invalidAt: Date): Promise<void> {
 		this.db
-			.prepare("UPDATE semantic_facts SET invalid_at = ? WHERE id = ?")
-			.run(invalidAt.getTime(), factId);
+			.prepare("UPDATE semantic_facts SET invalid_at = ? WHERE id = ? AND user_id = ?")
+			.run(invalidAt.getTime(), factId, userId);
 	}
 
-	async updateFact(factId: string, updates: Partial<SemanticFact>): Promise<void> {
+	async updateFact(userId: string, factId: string, updates: Partial<SemanticFact>): Promise<void> {
 		const row = this.db
-			.prepare("SELECT * FROM semantic_facts WHERE id = ?")
-			.get(factId) as FactRow | null;
+			.prepare("SELECT * FROM semantic_facts WHERE id = ? AND user_id = ?")
+			.get(factId, userId) as FactRow | null;
 		if (!row) {
 			return;
 		}
 
-		const current = rowToFact(row);
-		const merged = { ...current, ...updates };
-
+		const merged = { ...rowToFact(row), ...updates };
 		this.db
 			.prepare(
-				`UPDATE semantic_facts SET user_id = ?, category = ?, fact = ?, keywords = ?, source_episodic_ids = ?, embedding = ?, valid_at = ?, invalid_at = ?, created_at = ? WHERE id = ?`,
+				`UPDATE semantic_facts SET user_id = ?, category = ?, fact = ?, keywords = ?, source_episodic_ids = ?, embedding = ?, valid_at = ?, invalid_at = ?, created_at = ? WHERE id = ? AND user_id = ?`,
 			)
 			.run(
 				merged.userId,
@@ -213,6 +219,7 @@ export class SQLiteStorageAdapter implements StoragePort {
 				merged.invalidAt?.getTime() ?? null,
 				merged.createdAt.getTime(),
 				factId,
+				userId,
 			);
 	}
 
@@ -276,19 +283,13 @@ interface EpisodeRow {
 }
 
 function rowToEpisode(row: EpisodeRow): Episode {
-	const rawMessages = parseJson<Record<string, unknown>[]>(row.messages, "messages");
-	const messages: ChatMessage[] = rawMessages.map((m) => ({
-		role: m.role as ChatMessage["role"],
-		content: m.content as string,
-		...(m.timestamp ? { timestamp: new Date(m.timestamp as string) } : {}),
-	}));
 	return {
 		id: row.id,
 		userId: row.user_id,
 		title: row.title,
 		summary: row.summary,
-		messages,
-		embedding: parseJson<number[]>(row.embedding, "embedding"),
+		messages: validateMessages(parseJson<unknown>(row.messages, "messages")),
+		embedding: validateEmbedding(parseJson<unknown>(row.embedding, "embedding")),
 		surprise: row.surprise,
 		stability: row.stability,
 		difficulty: row.difficulty,
@@ -319,9 +320,12 @@ function rowToFact(row: FactRow): SemanticFact {
 		userId: row.user_id,
 		category: row.category as SemanticFact["category"],
 		fact: row.fact,
-		keywords: parseJson<string[]>(row.keywords, "keywords"),
-		sourceEpisodicIds: parseJson<string[]>(row.source_episodic_ids, "source_episodic_ids"),
-		embedding: parseJson<number[]>(row.embedding, "embedding"),
+		keywords: validateStringArray(parseJson<unknown>(row.keywords, "keywords"), "keywords"),
+		sourceEpisodicIds: validateStringArray(
+			parseJson<unknown>(row.source_episodic_ids, "source_episodic_ids"),
+			"source_episodic_ids",
+		),
+		embedding: validateEmbedding(parseJson<unknown>(row.embedding, "embedding")),
 		validAt: new Date(row.valid_at),
 		invalidAt: row.invalid_at === null ? null : new Date(row.invalid_at),
 		createdAt: new Date(row.created_at),

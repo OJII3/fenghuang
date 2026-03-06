@@ -8,7 +8,7 @@
 
 - **M3: ConsolidationPipeline + SemanticMemory は完了**
 - M1 の Core ドメイン + In-memory adapter、M2 の Segmenter + EpisodicMemory + SQLite + Vercel AI adapter に加え、意味記憶統合パイプラインが実装済み
-- テスト 181 件が全通過（`bun test`）
+- テスト 212 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -113,18 +113,18 @@
 | WARNING  | ActionContext の now が非決定的（テスト不安定）                                 | 修正済み |
 | WARNING  | Segmenter スキーマで Error→TypeError 不統一                                     | 修正済み |
 
-### PR #6 レビューで検出（既存コードベース対象、未修正）
+### PR #6 レビューで検出（既存コードベース対象）
 
-| 優先度  | 項目                                                                                          |
-| ------- | --------------------------------------------------------------------------------------------- |
-| WARNING | ID ベースのストレージ操作（`getEpisodeById` 等）に userId 検証がなくテナント分離が不完全      |
-| WARNING | `saveEpisode`/`saveFact` で引数 userId とエンティティ userId の不一致を検証していない         |
-| WARNING | Segmenter のプロンプトで `</conversation>` タグのエスケープが未実装（インジェクションリスク） |
-| WARNING | SQLite から解析した JSON（messages, embedding）の構造検証が不足                               |
-| WARNING | `parseJson` のエラーメッセージに生データ（最大100文字）が含まれ漏洩リスクあり                 |
-| INFO    | LLM API 呼び出しのレート制限・コスト制御が未実装                                              |
-| INFO    | InMemoryStorageAdapter の search limit バリデーションが SQLite と不統一                       |
-| INFO    | `cleanJsonResponse` ユーティリティの直接テスト（`utils.test.ts`）が未作成                     |
+| 優先度  | 項目                                                                                          | 対応状況 |
+| ------- | --------------------------------------------------------------------------------------------- | -------- |
+| WARNING | ID ベースのストレージ操作（`getEpisodeById` 等）に userId 検証がなくテナント分離が不完全      | 修正済み |
+| WARNING | `saveEpisode`/`saveFact` で引数 userId とエンティティ userId の不一致を検証していない         | 修正済み |
+| WARNING | Segmenter のプロンプトで `</conversation>` タグのエスケープが未実装（インジェクションリスク） | 修正済み |
+| WARNING | SQLite から解析した JSON（messages, embedding）の構造検証が不足                               | 修正済み |
+| WARNING | `parseJson` のエラーメッセージに生データ（最大100文字）が含まれ漏洩リスクあり                 | 修正済み |
+| INFO    | LLM API 呼び出しのレート制限・コスト制御が未実装                                              | 対象外   |
+| INFO    | InMemoryStorageAdapter の search limit バリデーションが SQLite と不統一                       | 修正済み |
+| INFO    | `cleanJsonResponse` ユーティリティの直接テスト（`utils.test.ts`）が未作成                     | 修正済み |
 
 ## 9. 再開時コンテキスト
 

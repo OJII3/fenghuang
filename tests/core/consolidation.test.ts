@@ -91,7 +91,7 @@ describe("ConsolidationPipeline — no episodes", () => {
 	test("skips already consolidated episodes", async () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
-		await storage.markEpisodeConsolidated(episode.id);
+		await storage.markEpisodeConsolidated(userId, episode.id);
 
 		const pipeline = new ConsolidationPipeline(createMockLLM(), storage);
 		const result = await pipeline.consolidate(userId);
@@ -489,7 +489,7 @@ describe("ConsolidationPipeline — episode marking", () => {
 		const unconsolidated = await storage.getUnconsolidatedEpisodes(userId);
 		expect(unconsolidated).toHaveLength(0);
 
-		const ep = await storage.getEpisodeById(episode.id);
+		const ep = await storage.getEpisodeById(userId, episode.id);
 		expect(ep!.consolidatedAt).not.toBeNull();
 	});
 
@@ -500,7 +500,7 @@ describe("ConsolidationPipeline — episode marking", () => {
 		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage);
 		await pipeline.consolidate(userId);
 
-		const ep = await storage.getEpisodeById(episode.id);
+		const ep = await storage.getEpisodeById(userId, episode.id);
 		expect(ep!.consolidatedAt).not.toBeNull();
 	});
 });

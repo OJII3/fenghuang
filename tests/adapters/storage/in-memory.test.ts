@@ -62,13 +62,13 @@ describe("InMemoryStorage — episodic memory", () => {
 	test("getEpisodeById returns the episode", async () => {
 		const ep = makeEpisode();
 		await storage.saveEpisode(userId, ep);
-		const found = await storage.getEpisodeById(ep.id);
+		const found = await storage.getEpisodeById(userId, ep.id);
 		expect(found).not.toBeNull();
 		expect(found!.id).toBe(ep.id);
 	});
 
 	test("getEpisodeById returns null for unknown id", async () => {
-		const found = await storage.getEpisodeById("nonexistent");
+		const found = await storage.getEpisodeById(userId, "nonexistent");
 		expect(found).toBeNull();
 	});
 
@@ -77,7 +77,7 @@ describe("InMemoryStorage — episodic memory", () => {
 		const ep2 = makeEpisode();
 		await storage.saveEpisode(userId, ep1);
 		await storage.saveEpisode(userId, ep2);
-		await storage.markEpisodeConsolidated(ep1.id);
+		await storage.markEpisodeConsolidated(userId, ep1.id);
 
 		const unconsolidated = await storage.getUnconsolidatedEpisodes(userId);
 		expect(unconsolidated).toHaveLength(1);
@@ -89,13 +89,13 @@ describe("InMemoryStorage — episodic memory", () => {
 		await storage.saveEpisode(userId, ep);
 
 		const now = new Date();
-		await storage.updateEpisodeFSRS(ep.id, {
+		await storage.updateEpisodeFSRS(userId, ep.id, {
 			stability: 5.0,
 			difficulty: 0.8,
 			lastReviewedAt: now,
 		});
 
-		const updated = await storage.getEpisodeById(ep.id);
+		const updated = await storage.getEpisodeById(userId, ep.id);
 		expect(updated!.stability).toBe(5.0);
 		expect(updated!.difficulty).toBe(0.8);
 		expect(updated!.lastReviewedAt).toEqual(now);
@@ -106,10 +106,50 @@ describe("InMemoryStorage — episodic memory", () => {
 		await storage.saveEpisode(userId, ep);
 		expect(ep.consolidatedAt).toBeNull();
 
-		await storage.markEpisodeConsolidated(ep.id);
-		const updated = await storage.getEpisodeById(ep.id);
+		await storage.markEpisodeConsolidated(userId, ep.id);
+		const updated = await storage.getEpisodeById(userId, ep.id);
 		expect(updated!.consolidatedAt).not.toBeNull();
 		expect(updated!.consolidatedAt).toBeInstanceOf(Date);
+	});
+
+	test("saveEpisode throws on userId mismatch", async () => {
+		const ep = makeEpisode({ userId: "user-1" });
+		await expect(storage.saveEpisode("user-2", ep)).rejects.toThrow("does not match");
+	});
+});
+
+describe("InMemoryStorage — tenant isolation (episodes)", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("getEpisodeById cannot access other user's episode", async () => {
+		const ep = makeEpisode({ userId: "user-1" });
+		await storage.saveEpisode("user-1", ep);
+		const found = await storage.getEpisodeById("user-2", ep.id);
+		expect(found).toBeNull();
+	});
+
+	test("updateEpisodeFSRS does not affect other user's episode", async () => {
+		const ep = makeEpisode({ userId: "user-1" });
+		await storage.saveEpisode("user-1", ep);
+		await storage.updateEpisodeFSRS("user-2", ep.id, {
+			stability: 99,
+			difficulty: 99,
+			lastReviewedAt: new Date(),
+		});
+		const found = await storage.getEpisodeById("user-1", ep.id);
+		expect(found!.stability).not.toBe(99);
+	});
+
+	test("markEpisodeConsolidated does not affect other user's episode", async () => {
+		const ep = makeEpisode({ userId: "user-1" });
+		await storage.saveEpisode("user-1", ep);
+		await storage.markEpisodeConsolidated("user-2", ep.id);
+		const found = await storage.getEpisodeById("user-1", ep.id);
+		expect(found!.consolidatedAt).toBeNull();
 	});
 });
 
@@ -131,7 +171,7 @@ describe("InMemoryStorage — semantic memory", () => {
 	test("getFacts excludes invalidated facts", async () => {
 		const fact = makeFact();
 		await storage.saveFact(userId, fact);
-		await storage.invalidateFact(fact.id, new Date());
+		await storage.invalidateFact(userId, fact.id, new Date());
 
 		const facts = await storage.getFacts(userId);
 		expect(facts).toHaveLength(0);
@@ -153,7 +193,7 @@ describe("InMemoryStorage — semantic memory", () => {
 		await storage.saveFact(userId, fact);
 
 		const invalidAt = new Date("2026-06-01T00:00:00Z");
-		await storage.invalidateFact(fact.id, invalidAt);
+		await storage.invalidateFact(userId, fact.id, invalidAt);
 
 		const facts = await storage.getFacts(userId);
 		expect(facts).toHaveLength(0);
@@ -163,11 +203,42 @@ describe("InMemoryStorage — semantic memory", () => {
 		const fact = makeFact();
 		await storage.saveFact(userId, fact);
 
-		await storage.updateFact(fact.id, { fact: "Loves TypeScript" });
+		await storage.updateFact(userId, fact.id, { fact: "Loves TypeScript" });
 
 		const facts = await storage.getFacts(userId);
 		expect(facts[0]!.fact).toBe("Loves TypeScript");
 		expect(facts[0]!.category).toBe("preference");
+	});
+
+	test("saveFact throws on userId mismatch", async () => {
+		const fact = makeFact({ userId: "user-1" });
+		await expect(storage.saveFact("user-2", fact)).rejects.toThrow("does not match");
+	});
+});
+
+describe("InMemoryStorage — tenant isolation (facts)", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("invalidateFact does not affect other user's fact", async () => {
+		const fact = makeFact({ userId: "user-1" });
+		await storage.saveFact("user-1", fact);
+		await storage.invalidateFact("user-2", fact.id, new Date());
+
+		const facts = await storage.getFacts("user-1");
+		expect(facts).toHaveLength(1);
+	});
+
+	test("updateFact does not affect other user's fact", async () => {
+		const fact = makeFact({ userId: "user-1" });
+		await storage.saveFact("user-1", fact);
+		await storage.updateFact("user-2", fact.id, { fact: "Hacked!" });
+
+		const facts = await storage.getFacts("user-1");
+		expect(facts[0]!.fact).toBe("Likes TypeScript");
 	});
 });
 
@@ -260,6 +331,13 @@ describe("InMemoryStorage — search episodes", () => {
 		const results = await storage.searchEpisodes("user-1", "shared", 10);
 		expect(results).toHaveLength(1);
 	});
+
+	test("clamps search limit", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "Test" }));
+
+		const results = await storage.searchEpisodes(userId, "test", -5);
+		expect(results).toHaveLength(1);
+	});
 });
 
 describe("InMemoryStorage — search facts", () => {
@@ -288,7 +366,7 @@ describe("InMemoryStorage — search facts", () => {
 	test("excludes invalidated facts", async () => {
 		const fact = makeFact({ fact: "Old preference" });
 		await storage.saveFact(userId, fact);
-		await storage.invalidateFact(fact.id, new Date());
+		await storage.invalidateFact(userId, fact.id, new Date());
 
 		const results = await storage.searchFacts(userId, "old", 10);
 		expect(results).toHaveLength(0);
@@ -303,5 +381,12 @@ describe("InMemoryStorage — search facts", () => {
 
 		const results = await storage.searchFacts(userId, "fact", 3);
 		expect(results).toHaveLength(3);
+	});
+
+	test("clamps search limit", async () => {
+		await storage.saveFact(userId, makeFact({ fact: "Test fact" }));
+
+		const results = await storage.searchFacts(userId, "test", -5);
+		expect(results).toHaveLength(1);
 	});
 });

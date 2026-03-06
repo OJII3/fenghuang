@@ -4,6 +4,7 @@ import type { Episode } from "./domain/episode.ts";
 import { createEpisode } from "./domain/episode.ts";
 import type { ChatMessage, SurpriseLevel } from "./domain/types.ts";
 import { SURPRISE_VALUES } from "./domain/types.ts";
+import { escapeXmlContent } from "./domain/utils.ts";
 
 /** Segmentation configuration */
 export interface SegmenterConfig {
@@ -166,7 +167,9 @@ export class Segmenter {
 		messages: ChatMessage[],
 		force: boolean,
 	): Promise<SegmentationOutput> {
-		const formatted = messages.map((m, i) => `[${i}] ${m.role}: ${m.content}`).join("\n");
+		const formatted = messages
+			.map((m, i) => `[${i}] ${m.role}: ${escapeXmlContent(m.content)}`)
+			.join("\n");
 
 		const forceRule = force
 			? "You MUST produce at least one segment covering the conversation."
