@@ -44,7 +44,7 @@ export function createFenghuang(opts: CreateFenghuangOptions): Fenghuang {
 
 	return {
 		segmenter: new Segmenter(llm, storage),
-		episodic: new EpisodicMemory(llm, storage),
+		episodic: new EpisodicMemory(storage),
 		consolidation: new ConsolidationPipeline(llm, storage),
 		retrieval: new Retrieval(llm, storage),
 	};
