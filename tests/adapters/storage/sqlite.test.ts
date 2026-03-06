@@ -343,6 +343,40 @@ describe("SQLiteStorage — message queue", () => {
 	});
 });
 
+describe("SQLiteStorage — tenant isolation (message queue)", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("getMessageQueue does not return other user's messages", async () => {
+		await storage.pushMessage("user-1", { role: "user", content: "msg-1" });
+		await storage.pushMessage("user-2", { role: "user", content: "msg-2" });
+
+		const queue = await storage.getMessageQueue("user-1");
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.content).toBe("msg-1");
+	});
+
+	test("clearMessageQueue does not affect other user's messages", async () => {
+		await storage.pushMessage("user-1", { role: "user", content: "msg-1" });
+		await storage.pushMessage("user-2", { role: "user", content: "msg-2" });
+
+		await storage.clearMessageQueue("user-1");
+
+		const q1 = await storage.getMessageQueue("user-1");
+		const q2 = await storage.getMessageQueue("user-2");
+		expect(q1).toHaveLength(0);
+		expect(q2).toHaveLength(1);
+		expect(q2[0]!.content).toBe("msg-2");
+	});
+});
+
 describe("SQLiteStorage — updateFact edge cases", () => {
 	let storage: SQLiteStorageAdapter;
 
@@ -461,5 +495,80 @@ describe("SQLiteStorage — search facts", () => {
 
 		const results = await storage.searchFacts(userId, "fact", 3);
 		expect(results).toHaveLength(3);
+	});
+});
+
+describe("SQLiteStorage — search limit clamping", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("searchEpisodes clamps negative limit to 1", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "Test" }));
+		const results = await storage.searchEpisodes(userId, "test", -5);
+		expect(results).toHaveLength(1);
+	});
+
+	test("searchEpisodes clamps excessively large limit to 1000", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "Test" }));
+		const results = await storage.searchEpisodes(userId, "test", 99_999);
+		expect(results).toHaveLength(1);
+	});
+
+	test("searchFacts clamps negative limit to 1", async () => {
+		await storage.saveFact(userId, makeFact({ fact: "Test fact" }));
+		const results = await storage.searchFacts(userId, "test", -5);
+		expect(results).toHaveLength(1);
+	});
+
+	test("searchFacts clamps excessively large limit to 1000", async () => {
+		await storage.saveFact(userId, makeFact({ fact: "Test fact" }));
+		const results = await storage.searchFacts(userId, "test", 99_999);
+		expect(results).toHaveLength(1);
+	});
+});
+
+describe("SQLiteStorage — escapeLike wildcards", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("searches literal % in episode title", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "100% done" }));
+		await storage.saveEpisode(userId, makeEpisode({ title: "All done" }));
+
+		const results = await storage.searchEpisodes(userId, "100%", 10);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.title).toBe("100% done");
+	});
+
+	test("searches literal _ in episode title", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "snake_case naming" }));
+		await storage.saveEpisode(userId, makeEpisode({ title: "snakeXcase naming" }));
+
+		const results = await storage.searchEpisodes(userId, "snake_case", 10);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.title).toBe("snake_case naming");
+	});
+
+	test("searches literal % in fact content", async () => {
+		await storage.saveFact(userId, makeFact({ fact: "Prefers 100% coverage" }));
+		await storage.saveFact(userId, makeFact({ fact: "Prefers full coverage" }));
+
+		const results = await storage.searchFacts(userId, "100%", 10);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.fact).toBe("Prefers 100% coverage");
 	});
 });

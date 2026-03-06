@@ -282,6 +282,36 @@ describe("InMemoryStorage — message queue", () => {
 	});
 });
 
+describe("InMemoryStorage — tenant isolation (message queue)", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("getMessageQueue does not return other user's messages", async () => {
+		await storage.pushMessage("user-1", { role: "user", content: "msg-1" });
+		await storage.pushMessage("user-2", { role: "user", content: "msg-2" });
+
+		const queue = await storage.getMessageQueue("user-1");
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.content).toBe("msg-1");
+	});
+
+	test("clearMessageQueue does not affect other user's messages", async () => {
+		await storage.pushMessage("user-1", { role: "user", content: "msg-1" });
+		await storage.pushMessage("user-2", { role: "user", content: "msg-2" });
+
+		await storage.clearMessageQueue("user-1");
+
+		const q1 = await storage.getMessageQueue("user-1");
+		const q2 = await storage.getMessageQueue("user-2");
+		expect(q1).toHaveLength(0);
+		expect(q2).toHaveLength(1);
+		expect(q2[0]!.content).toBe("msg-2");
+	});
+});
+
 describe("InMemoryStorage — search episodes", () => {
 	let storage: InMemoryStorageAdapter;
 
