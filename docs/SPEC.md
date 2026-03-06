@@ -55,7 +55,7 @@ fenghuang は、AI アシスタント [vicissitude](https://github.com/ojii3/vic
 - **ランタイム**: Bun
 - **言語**: TypeScript（strict mode）
 - **ストレージ**: SQLite（bun:sqlite）をデフォルトとし、Port 経由で差し替え可能
-- **LLM**: opencode をデフォルトとし、Port 経由で差し替え可能
+- **LLM**: Vercel AI SDK をデフォルトとし、Port 経由で差し替え可能
 - **テスト可能性**: Core ドメインは外部依存なしでテスト可能（in-memory adapter）
 - **アーキテクチャ**: Hexagonal Architecture（Ports & Adapters）
 
@@ -67,4 +67,4 @@ fenghuang は、AI アシスタント [vicissitude](https://github.com/ojii3/vic
 4. クエリで記憶を検索でき、FSRS による減衰が反映される
 5. in-memory adapter でのユニットテストが全て通る
 6. SQLite adapter での統合テストが全て通る
-7. opencode adapter で LLM 呼び出しが動作する
+7. Vercel AI SDK adapter で LLM 呼び出しが動作する

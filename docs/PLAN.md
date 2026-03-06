@@ -24,21 +24,21 @@
 - `bun test` で全テスト通過
 - Core が外部依存を一切 import していない
 
-### M2: Segmenter + SQLite adapter + opencode LLM adapter
+### M2: Segmenter + SQLite adapter + Vercel AI SDK LLM adapter
 
 成果物:
 
 - Segmenter（LLMPort を使用してセグメント境界を判定）
 - EpisodicMemory サービス（エピソードの保存・取得）
 - SQLite StoragePort adapter（bun:sqlite）
-- opencode LLMPort adapter
+- Vercel AI SDK LLMPort adapter
 - 統合テスト
 
 完了条件:
 
 - メッセージを追加すると適切にセグメンテーションされる
 - SQLite にエピソードが永続化される
-- opencode 経由で LLM 呼び出しが動作する
+- Vercel AI SDK 経由で LLM 呼び出しが動作する
 
 ### M3: 意味記憶統合パイプライン
 
@@ -71,7 +71,6 @@
 | ID  | リスク                                | 影響                       | 対策                                                   |
 | --- | ------------------------------------- | -------------------------- | ------------------------------------------------------ |
 | R1  | bun:sqlite でベクトル検索ができない   | ハイブリッド検索が実装不可 | sqlite-vss 拡張 or アプリ側でベクトル計算              |
-| R2  | opencode SDK の API が不安定          | adapter 実装が壊れる       | Port で隔離しているため adapter 差し替えで対応         |
 | R3  | FSRS パラメータのチューニングが難しい | 記憶の減衰が不自然         | plast-mem のデフォルト値を参考に、後から調整可能にする |
 | R4  | LLM のセグメンテーション精度が低い    | エピソード粒度が不適切     | プロンプトの改善 + 閾値のチューニング                  |
 

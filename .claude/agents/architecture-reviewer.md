@@ -27,9 +27,9 @@ You are the Architecture Reviewer for the **fenghuang** project — a long-term 
     ┌──────┴──────┐    ┌──────┴──────┐
     │  Adapters   │    │  Adapters   │
     ├─────────────┤    ├─────────────┤
-    │ opencode    │    │ SQLite      │
-    │ (Vercel AI) │    │ (Postgres)  │
-    │ (Anthropic) │    │ in-memory   │
+    │ Vercel AI   │    │ SQLite      │
+    │ (Anthropic) │    │ (Postgres)  │
+    │             │    │ in-memory   │
     └─────────────┘    └─────────────┘
 ```
 
