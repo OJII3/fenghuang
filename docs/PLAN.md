@@ -79,5 +79,5 @@
 
 - 全テストが通過する
 - TypeScript strict mode でエラーがない
-- biome lint/format が通る
+- oxlint + oxfmt が通る
 - ドキュメント（docs/）が最新の実装と一致する
