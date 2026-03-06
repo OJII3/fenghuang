@@ -596,6 +596,87 @@ describe("SQLiteStorage — search facts", () => {
 	});
 });
 
+describe("SQLiteStorage — FTS5 episodes", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("FTS5 matches token in title", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: "TypeScript Discussion" }));
+		await storage.saveEpisode(userId, makeEpisode({ title: "Python Tutorial" }));
+
+		const results = await storage.searchEpisodes(userId, "TypeScript", 10);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.title).toBe("TypeScript Discussion");
+	});
+
+	test("FTS5 matches token in summary", async () => {
+		await storage.saveEpisode(
+			userId,
+			makeEpisode({ title: "Chat", summary: "Discussed Bun runtime performance" }),
+		);
+
+		const results = await storage.searchEpisodes(userId, "Bun", 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("FTS5 BM25 ranking orders by relevance", async () => {
+		// Episode with "TypeScript" in title (more relevant)
+		await storage.saveEpisode(userId, makeEpisode({ title: "TypeScript Guide", summary: "A guide" }));
+		// Episode with "TypeScript" in summary only
+		await storage.saveEpisode(
+			userId,
+			makeEpisode({ title: "General Chat", summary: "Mentioned TypeScript briefly" }),
+		);
+
+		const results = await storage.searchEpisodes(userId, "TypeScript", 10);
+		expect(results).toHaveLength(2);
+	});
+});
+
+describe("SQLiteStorage — FTS5 facts", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("FTS5 matches token in fact", async () => {
+		await storage.saveFact(userId, makeFact({ fact: "Prefers dark mode" }));
+		await storage.saveFact(userId, makeFact({ fact: "Uses light theme" }));
+
+		const results = await storage.searchFacts(userId, "dark", 10);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.fact).toBe("Prefers dark mode");
+	});
+
+	test("FTS5 matches in keywords JSON", async () => {
+		await storage.saveFact(userId, makeFact({ keywords: ["vim", "editor"] }));
+
+		const results = await storage.searchFacts(userId, "vim", 10);
+		expect(results).toHaveLength(1);
+	});
+
+	test("FTS5 excludes invalidated facts", async () => {
+		const fact = makeFact({ fact: "Old preference dark mode" });
+		await storage.saveFact(userId, fact);
+		await storage.invalidateFact(userId, fact.id, new Date());
+
+		const results = await storage.searchFacts(userId, "dark", 10);
+		expect(results).toHaveLength(0);
+	});
+});
+
 describe("SQLiteStorage — search limit clamping", () => {
 	let storage: SQLiteStorageAdapter;
 

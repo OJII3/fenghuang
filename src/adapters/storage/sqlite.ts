@@ -16,6 +16,11 @@ function escapeLike(s: string): string {
 		.replaceAll("_", String.raw`\_`);
 }
 
+/** Escape a query string for FTS5 phrase search */
+function escapeFts5(query: string): string {
+	return `"${query.replaceAll('"', '""')}"`;
+}
+
 /** SQLite storage adapter using bun:sqlite */
 export class SQLiteStorageAdapter implements StoragePort {
 	private db: Database;
@@ -52,6 +57,23 @@ export class SQLiteStorageAdapter implements StoragePort {
 		`);
 		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_episodes_user_id ON episodes(user_id)`);
 
+		// FTS5 for episodes
+		this.db.exec(`
+			CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts USING fts5(
+				id UNINDEXED, title, summary
+			)
+		`);
+		this.db.exec(`
+			CREATE TRIGGER IF NOT EXISTS episodes_fts_ai AFTER INSERT ON episodes BEGIN
+				INSERT INTO episodes_fts(id, title, summary) VALUES (new.id, new.title, new.summary);
+			END
+		`);
+		this.db.exec(`
+			CREATE TRIGGER IF NOT EXISTS episodes_fts_ad AFTER DELETE ON episodes BEGIN
+				DELETE FROM episodes_fts WHERE id = old.id;
+			END
+		`);
+
 		this.db.exec(`
 			CREATE TABLE IF NOT EXISTS semantic_facts (
 				id TEXT PRIMARY KEY,
@@ -67,6 +89,23 @@ export class SQLiteStorageAdapter implements StoragePort {
 			)
 		`);
 		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_facts_user_id ON semantic_facts(user_id)`);
+
+		// FTS5 for semantic_facts
+		this.db.exec(`
+			CREATE VIRTUAL TABLE IF NOT EXISTS semantic_facts_fts USING fts5(
+				id UNINDEXED, fact, keywords
+			)
+		`);
+		this.db.exec(`
+			CREATE TRIGGER IF NOT EXISTS facts_fts_ai AFTER INSERT ON semantic_facts BEGIN
+				INSERT INTO semantic_facts_fts(id, fact, keywords) VALUES (new.id, new.fact, new.keywords);
+			END
+		`);
+		this.db.exec(`
+			CREATE TRIGGER IF NOT EXISTS facts_fts_ad AFTER DELETE ON semantic_facts BEGIN
+				DELETE FROM semantic_facts_fts WHERE id = old.id;
+			END
+		`);
 
 		this.db.exec(`
 			CREATE TABLE IF NOT EXISTS message_queue (
@@ -247,24 +286,56 @@ export class SQLiteStorageAdapter implements StoragePort {
 
 	async searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]> {
 		const safeLim = Math.max(1, Math.min(limit, 1000));
-		const pattern = `%${escapeLike(query)}%`;
-		const rows = this.db
-			.prepare(
-				`SELECT * FROM episodes WHERE user_id = ? AND (title LIKE ? ESCAPE '\\' COLLATE NOCASE OR summary LIKE ? ESCAPE '\\' COLLATE NOCASE) LIMIT ?`,
-			)
-			.all(userId, pattern, pattern, safeLim) as EpisodeRow[];
-		return rows.map((r) => rowToEpisode(r));
+
+		// Try FTS5 first, fall back to LIKE on failure
+		try {
+			const ftsQuery = escapeFts5(query);
+			const rows = this.db
+				.prepare(
+					`SELECT e.* FROM episodes e
+					 JOIN episodes_fts ON episodes_fts.id = e.id
+					 WHERE episodes_fts MATCH ? AND e.user_id = ?
+					 ORDER BY bm25(episodes_fts)
+					 LIMIT ?`,
+				)
+				.all(ftsQuery, userId, safeLim) as EpisodeRow[];
+			return rows.map((r) => rowToEpisode(r));
+		} catch {
+			const pattern = `%${escapeLike(query)}%`;
+			const rows = this.db
+				.prepare(
+					`SELECT * FROM episodes WHERE user_id = ? AND (title LIKE ? ESCAPE '\\' COLLATE NOCASE OR summary LIKE ? ESCAPE '\\' COLLATE NOCASE) LIMIT ?`,
+				)
+				.all(userId, pattern, pattern, safeLim) as EpisodeRow[];
+			return rows.map((r) => rowToEpisode(r));
+		}
 	}
 
 	async searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]> {
 		const safeLim = Math.max(1, Math.min(limit, 1000));
-		const pattern = `%${escapeLike(query)}%`;
-		const rows = this.db
-			.prepare(
-				`SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL AND (fact LIKE ? ESCAPE '\\' COLLATE NOCASE OR keywords LIKE ? ESCAPE '\\' COLLATE NOCASE) LIMIT ?`,
-			)
-			.all(userId, pattern, pattern, safeLim) as FactRow[];
-		return rows.map((r) => rowToFact(r));
+
+		// Try FTS5 first, fall back to LIKE on failure
+		try {
+			const ftsQuery = escapeFts5(query);
+			const rows = this.db
+				.prepare(
+					`SELECT f.* FROM semantic_facts f
+					 JOIN semantic_facts_fts ON semantic_facts_fts.id = f.id
+					 WHERE semantic_facts_fts MATCH ? AND f.user_id = ? AND f.invalid_at IS NULL
+					 ORDER BY bm25(semantic_facts_fts)
+					 LIMIT ?`,
+				)
+				.all(ftsQuery, userId, safeLim) as FactRow[];
+			return rows.map((r) => rowToFact(r));
+		} catch {
+			const pattern = `%${escapeLike(query)}%`;
+			const rows = this.db
+				.prepare(
+					`SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL AND (fact LIKE ? ESCAPE '\\' COLLATE NOCASE OR keywords LIKE ? ESCAPE '\\' COLLATE NOCASE) LIMIT ?`,
+				)
+				.all(userId, pattern, pattern, safeLim) as FactRow[];
+			return rows.map((r) => rowToFact(r));
+		}
 	}
 
 	// --- Vector search ---
