@@ -91,7 +91,7 @@ export class InMemoryStorageAdapter implements StoragePort {
 		if (!fact || fact.userId !== userId) {
 			return;
 		}
-		Object.assign(fact, updates);
+		this.facts.set(factId, { ...fact, ...updates, id: fact.id, userId: fact.userId });
 	}
 
 	// --- Message queue ---

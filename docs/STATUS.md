@@ -8,7 +8,7 @@
 
 - **M3: ConsolidationPipeline + SemanticMemory は完了**
 - M1 の Core ドメイン + In-memory adapter、M2 の Segmenter + EpisodicMemory + SQLite + Vercel AI adapter に加え、意味記憶統合パイプラインが実装済み
-- テスト 260 件が全通過（`bun test`）
+- テスト 269 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -44,16 +44,17 @@
 | Episode テスト            | `tests/core/domain/episode.test.ts`        | 完了（9件）  |
 | SemanticFact テスト       | `tests/core/domain/semantic-fact.test.ts`  | 完了（6件）  |
 | FSRS テスト               | `tests/core/domain/fsrs.test.ts`           | 完了（15件） |
-| In-memory adapter テスト  | `tests/adapters/storage/in-memory.test.ts` | 完了（27件） |
+| 共有ユーティリティテスト  | `tests/core/domain/utils.test.ts`          | 完了（12件） |
+| In-memory adapter テスト  | `tests/adapters/storage/in-memory.test.ts` | 完了（39件） |
 
 ## 5. M2 成果物
 
 | 項目                  | ファイル                                       | ステータス   |
 | --------------------- | ---------------------------------------------- | ------------ |
 | SQLite StoragePort    | `src/adapters/storage/sqlite.ts`               | 完了         |
-| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`        | 完了（42件） |
+| SQLite テスト         | `tests/adapters/storage/sqlite.test.ts`        | 完了（47件） |
 | Segmenter             | `src/core/segmenter.ts`                        | 完了         |
-| Segmenter テスト      | `tests/core/segmenter.test.ts`                 | 完了（17件） |
+| Segmenter テスト      | `tests/core/segmenter.test.ts`                 | 完了（18件） |
 | EpisodicMemory        | `src/core/episodic.ts`                         | 完了         |
 | EpisodicMemory テスト | `tests/core/episodic.test.ts`                  | 完了（16件） |
 | 統合テスト            | `tests/integration/segmenter-sqlite.test.ts`   | 完了（6件）  |
@@ -62,6 +63,7 @@
 | Vercel AI テスト      | `tests/adapters/llm/vercel-ai.test.ts`         | 完了（18件） |
 | parse-helpers         | `src/adapters/storage/parse-helpers.ts`        | 完了         |
 | parse-helpers テスト  | `tests/adapters/storage/parse-helpers.test.ts` | 完了（30件） |
+| LLM utils テスト      | `tests/adapters/llm/utils.test.ts`             | 完了（7件）  |
 | Public API テスト     | `tests/index.test.ts`                          | 完了（1件）  |
 
 ### M2 設計上の決定
@@ -96,7 +98,7 @@
 
 ## 6.6 技術的負債
 
-- なし（`sqlite.ts` の Row 型 + 変換関数は `sqlite-rows.ts` に分離済み）
+- なし（`sqlite.ts` の Row 型 + 変換関数は `sqlite-rows.ts` に分離済み、PR #9 のレビュー指摘 11 件は修正済み）
 
 ## 7. ブロッカー
 

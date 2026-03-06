@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { escapeXmlContent } from "../../../src/core/domain/utils.ts";
+import { escapeXmlContent, validateUserId } from "../../../src/core/domain/utils.ts";
 
 describe("escapeXmlContent", () => {
 	test("escapes ampersands", () => {
@@ -35,5 +35,25 @@ describe("escapeXmlContent", () => {
 
 	test("handles ampersand before angle bracket", () => {
 		expect(escapeXmlContent("&<")).toBe("&amp;&lt;");
+	});
+});
+
+describe("validateUserId", () => {
+	test("throws on empty string", () => {
+		expect(() => validateUserId("")).toThrow("userId must not be empty");
+	});
+
+	test("throws on string exceeding 256 characters", () => {
+		const longId = "a".repeat(257);
+		expect(() => validateUserId(longId)).toThrow("userId too long");
+	});
+
+	test("accepts valid userId", () => {
+		expect(() => validateUserId("user-123")).not.toThrow();
+	});
+
+	test("accepts userId at max length boundary", () => {
+		const maxId = "a".repeat(256);
+		expect(() => validateUserId(maxId)).not.toThrow();
 	});
 });

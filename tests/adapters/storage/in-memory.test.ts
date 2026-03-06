@@ -312,6 +312,46 @@ describe("InMemoryStorage — tenant isolation (message queue)", () => {
 	});
 });
 
+describe("InMemoryStorage — updateFact edge cases", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("updateFact on nonexistent fact does not throw", async () => {
+		await expect(
+			storage.updateFact(userId, "nonexistent-id", { fact: "Updated fact" }),
+		).resolves.toBeUndefined();
+	});
+});
+
+describe("InMemoryStorage — message timestamp", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("preserves message timestamp through round-trip", async () => {
+		const ts = new Date("2026-03-01T12:00:00Z");
+		await storage.pushMessage(userId, { role: "user", content: "timed", timestamp: ts });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.timestamp).toBeInstanceOf(Date);
+		expect(queue[0]!.timestamp!.getTime()).toBe(ts.getTime());
+	});
+
+	test("message without timestamp round-trips correctly", async () => {
+		await storage.pushMessage(userId, { role: "user", content: "no time" });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.timestamp).toBeUndefined();
+	});
+});
+
 describe("InMemoryStorage — search episodes", () => {
 	let storage: InMemoryStorageAdapter;
 

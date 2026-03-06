@@ -4,7 +4,7 @@ import type { Episode } from "./domain/episode.ts";
 import { createEpisode } from "./domain/episode.ts";
 import type { ChatMessage, SurpriseLevel } from "./domain/types.ts";
 import { SURPRISE_VALUES } from "./domain/types.ts";
-import { escapeXmlContent } from "./domain/utils.ts";
+import { escapeXmlContent, validateUserId } from "./domain/utils.ts";
 
 /** Segmentation configuration */
 export interface SegmenterConfig {
@@ -14,12 +14,17 @@ export interface SegmenterConfig {
 	softTrigger: number;
 	/** Hard trigger threshold — forced segmentation */
 	hardTrigger: number;
+	/** Maximum number of messages allowed in the queue per user (default: 200) */
+	maxQueueSize?: number;
 }
 
-export const DEFAULT_SEGMENTER_CONFIG: SegmenterConfig = {
+const DEFAULT_MAX_QUEUE_SIZE = 200;
+
+export const DEFAULT_SEGMENTER_CONFIG: Required<SegmenterConfig> = {
 	minMessages: 5,
 	softTrigger: 20,
 	hardTrigger: 40,
+	maxQueueSize: DEFAULT_MAX_QUEUE_SIZE,
 };
 
 /** A detected segment boundary from LLM analysis */
@@ -49,8 +54,10 @@ export class Segmenter {
 	 * Returns any episodes created during segmentation.
 	 */
 	async addMessage(userId: string, message: ChatMessage): Promise<Episode[]> {
+		validateUserId(userId);
 		await this.storage.pushMessage(userId, message);
 		const queue = await this.storage.getMessageQueue(userId);
+		this.checkQueueSize(userId, queue);
 
 		if (queue.length >= this.config.hardTrigger) {
 			return this.segment(userId, queue, true);
@@ -61,6 +68,16 @@ export class Segmenter {
 		}
 
 		return [];
+	}
+
+	/** Throw if the message queue exceeds the configured maximum size */
+	private checkQueueSize(userId: string, queue: ChatMessage[]): void {
+		const maxQueueSize = this.config.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE;
+		if (queue.length > maxQueueSize) {
+			throw new Error(
+				`Message queue for user "${userId}" exceeds maximum size (${queue.length} > ${maxQueueSize})`,
+			);
+		}
 	}
 
 	/**

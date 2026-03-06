@@ -6,7 +6,14 @@ import type { SemanticFact } from "../../core/domain/semantic-fact.ts";
 import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
 import type { EpisodeRow, FactRow, MessageRow } from "./sqlite-rows.ts";
-import { escapeLike, rowToEpisode, rowToFact, rowToMessage } from "./sqlite-rows.ts";
+import { rowToEpisode, rowToFact, rowToMessage } from "./sqlite-rows.ts";
+
+function escapeLike(s: string): string {
+	return s
+		.replaceAll("\\", String.raw`\\`)
+		.replaceAll("%", String.raw`\%`)
+		.replaceAll("_", String.raw`\_`);
+}
 
 /** SQLite storage adapter using bun:sqlite */
 export class SQLiteStorageAdapter implements StoragePort {

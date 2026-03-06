@@ -10,13 +10,6 @@ import {
 	validateStringArray,
 } from "./parse-helpers.ts";
 
-export function escapeLike(s: string): string {
-	return s
-		.replaceAll("\\", String.raw`\\`)
-		.replaceAll("%", String.raw`\%`)
-		.replaceAll("_", String.raw`\_`);
-}
-
 export interface EpisodeRow {
 	id: string;
 	user_id: string;
@@ -72,10 +65,11 @@ export function rowToFact(row: FactRow): SemanticFact {
 		userId: row.user_id,
 		category: validateCategory(row.category),
 		fact: row.fact,
-		keywords: validateStringArray(parseJson(row.keywords, "keywords"), "keywords"),
+		keywords: validateStringArray(parseJson(row.keywords, "keywords"), "keywords", 100),
 		sourceEpisodicIds: validateStringArray(
 			parseJson(row.source_episodic_ids, "source_episodic_ids"),
 			"source_episodic_ids",
+			500,
 		),
 		embedding: validateEmbedding(parseJson(row.embedding, "embedding")),
 		validAt: new Date(row.valid_at),

@@ -571,4 +571,13 @@ describe("SQLiteStorage — escapeLike wildcards", () => {
 		expect(results).toHaveLength(1);
 		expect(results[0]!.fact).toBe("Prefers 100% coverage");
 	});
+
+	test("searches literal backslash in episode title", async () => {
+		await storage.saveEpisode(userId, makeEpisode({ title: String.raw`path\to\file` }));
+		await storage.saveEpisode(userId, makeEpisode({ title: "pathXtoXfile" }));
+
+		const results = await storage.searchEpisodes(userId, String.raw`path\to`, 10);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.title).toBe(String.raw`path\to\file`);
+	});
 });

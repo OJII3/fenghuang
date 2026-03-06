@@ -4,7 +4,8 @@ import type { Episode } from "./domain/episode.ts";
 import type { SemanticFact } from "./domain/semantic-fact.ts";
 import { createFact } from "./domain/semantic-fact.ts";
 import type { ConsolidationAction, FactCategory } from "./domain/types.ts";
-import { escapeXmlContent } from "./domain/utils.ts";
+import { CONSOLIDATION_ACTIONS, FACT_CATEGORIES } from "./domain/types.ts";
+import { escapeXmlContent, validateUserId } from "./domain/utils.ts";
 
 /** Result of a consolidation run */
 export interface ConsolidationResult {
@@ -42,6 +43,7 @@ export class ConsolidationPipeline {
 
 	/** Run consolidation for a user: extract facts from unconsolidated episodes */
 	async consolidate(userId: string): Promise<ConsolidationResult> {
+		validateUserId(userId);
 		const episodes = await this.storage.getUnconsolidatedEpisodes(userId);
 		const result = emptyResult();
 		for (const episode of episodes) {
@@ -236,17 +238,8 @@ function incrementResult(result: ConsolidationResult, action: ConsolidationActio
 
 const MAX_FACTS_PER_EPISODE = 30;
 const MAX_KEYWORDS_PER_FACT = 10;
-const VALID_ACTIONS = new Set<string>(["new", "reinforce", "update", "invalidate"]);
-const VALID_CATEGORIES = new Set<string>([
-	"identity",
-	"preference",
-	"interest",
-	"personality",
-	"relationship",
-	"experience",
-	"goal",
-	"guideline",
-]);
+const VALID_ACTIONS = new Set<string>(CONSOLIDATION_ACTIONS);
+const VALID_CATEGORIES = new Set<string>(FACT_CATEGORIES);
 
 function validateFactFields(obj: Record<string, unknown>, i: number): void {
 	if (typeof obj["action"] !== "string" || !VALID_ACTIONS.has(obj["action"])) {

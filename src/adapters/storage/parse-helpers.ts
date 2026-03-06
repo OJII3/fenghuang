@@ -1,16 +1,8 @@
 import type { ChatMessage, FactCategory, MessageRole } from "../../core/domain/types.ts";
+import { FACT_CATEGORIES, MESSAGE_ROLES } from "../../core/domain/types.ts";
 
-const VALID_ROLES = new Set<string>(["system", "user", "assistant"]);
-const VALID_CATEGORIES = new Set<string>([
-	"identity",
-	"preference",
-	"interest",
-	"personality",
-	"relationship",
-	"experience",
-	"goal",
-	"guideline",
-]);
+const VALID_ROLES = new Set<string>(MESSAGE_ROLES);
+const VALID_CATEGORIES = new Set<string>(FACT_CATEGORIES);
 
 const MAX_EMBEDDING_DIM = 4096;
 
@@ -65,9 +57,12 @@ function validateMessage(m: unknown, i: number): ChatMessage {
 		: { role, content: obj["content"] as string };
 }
 
-export function validateMessages(data: unknown): ChatMessage[] {
+export function validateMessages(data: unknown, maxLength = 500): ChatMessage[] {
 	if (!Array.isArray(data)) {
 		throw new TypeError("messages: expected array");
+	}
+	if (data.length > maxLength) {
+		throw new RangeError(`messages: too many elements (${data.length}), maximum ${maxLength}`);
 	}
 	return data.map((m, i) => validateMessage(m, i));
 }

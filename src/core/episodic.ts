@@ -3,6 +3,7 @@ import type { Episode } from "./domain/episode.ts";
 import type { FSRSCard } from "./domain/fsrs.ts";
 import { retrievability, reviewCard } from "./domain/fsrs.ts";
 import type { ReviewRating } from "./domain/types.ts";
+import { validateUserId } from "./domain/utils.ts";
 
 /** Options for reviewing an episode */
 export interface ReviewOptions {
@@ -16,21 +17,25 @@ export class EpisodicMemory {
 
 	/** Get all episodes for a user */
 	async getEpisodes(userId: string): Promise<Episode[]> {
+		validateUserId(userId);
 		return this.storage.getEpisodes(userId);
 	}
 
 	/** Get a single episode by ID */
 	async getEpisodeById(userId: string, episodeId: string): Promise<Episode | null> {
+		validateUserId(userId);
 		return this.storage.getEpisodeById(userId, episodeId);
 	}
 
 	/** Get unconsolidated episodes for a user */
 	async getUnconsolidated(userId: string): Promise<Episode[]> {
+		validateUserId(userId);
 		return this.storage.getUnconsolidatedEpisodes(userId);
 	}
 
 	/** Search episodes by query */
 	async search(userId: string, query: string, limit: number): Promise<Episode[]> {
+		validateUserId(userId);
 		return this.storage.searchEpisodes(userId, query, limit);
 	}
 
@@ -43,6 +48,7 @@ export class EpisodicMemory {
 		episodeId: string,
 		options: ReviewOptions,
 	): Promise<FSRSCard | null> {
+		validateUserId(userId);
 		const episode = await this.storage.getEpisodeById(userId, episodeId);
 		if (!episode) {
 			return null;
@@ -62,6 +68,7 @@ export class EpisodicMemory {
 
 	/** Mark an episode as consolidated into semantic memory */
 	async markConsolidated(userId: string, episodeId: string): Promise<void> {
+		validateUserId(userId);
 		return this.storage.markEpisodeConsolidated(userId, episodeId);
 	}
 
