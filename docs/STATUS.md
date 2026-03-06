@@ -100,7 +100,20 @@
 
 1. bun:sqlite でベクトル検索をどう実現するか要調査（R1）
 
-## 8.5 セキュリティレビュー指摘事項（PR #6 レビューで検出、既存コードベース対象）
+## 8.5 セキュリティレビュー指摘事項
+
+### PR #7 レビューで検出・修正済み（M3 ConsolidationPipeline 対象）
+
+| 優先度   | 項目                                                                            | 対応状況 |
+| -------- | ------------------------------------------------------------------------------- | -------- |
+| CRITICAL | ConsolidationPipeline の update/invalidate で existingFactId のテナント検証不足 | 修正済み |
+| CRITICAL | ドキュメント（ARCHITECTURE.md §7.2）が実装と乖離                                | 修正済み |
+| WARNING  | Consolidation プロンプトに injection 防御が不足                                 | 修正済み |
+| WARNING  | dispatchAction の戻り値が void で失敗検知不可                                   | 修正済み |
+| WARNING  | ActionContext の now が非決定的（テスト不安定）                                 | 修正済み |
+| WARNING  | Segmenter スキーマで Error→TypeError 不統一                                     | 修正済み |
+
+### PR #6 レビューで検出（既存コードベース対象、未修正）
 
 | 優先度  | 項目                                                                                          |
 | ------- | --------------------------------------------------------------------------------------------- |
