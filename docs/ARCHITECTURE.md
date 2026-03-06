@@ -63,7 +63,8 @@ src/
 ├── adapters/                # Adapter（外部依存はここだけ）
 │   ├── llm/
 │   │   ├── opencode.ts     # opencode LLM adapter
-│   │   └── vercel-ai.ts    # Vercel AI SDK adapter
+│   │   ├── vercel-ai.ts    # Vercel AI SDK adapter
+│   │   └── utils.ts        # LLM adapter 共有ユーティリティ
 │   └── storage/
 │       ├── sqlite.ts       # SQLite adapter（bun:sqlite）
 │       └── in-memory.ts    # In-memory adapter（テスト用）

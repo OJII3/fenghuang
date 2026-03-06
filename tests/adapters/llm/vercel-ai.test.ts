@@ -20,9 +20,9 @@ mock.module("ai", () => ({
 
 function createAdapter(opts?: { temperature?: number; maxTokens?: number }) {
 	return new VercelAIAdapter({
-		// biome-ignore lint: mock model
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock model
 		model: { modelId: "test-model" } as any,
-		// biome-ignore lint: mock model
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock model
 		embeddingModel: { modelId: "test-embed" } as any,
 		...opts,
 	});

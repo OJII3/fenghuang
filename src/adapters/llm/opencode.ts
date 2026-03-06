@@ -66,8 +66,7 @@ export class OpencodeLLMAdapter implements LLMPort {
 		}
 
 		const text = extractTextFromParts(response.data?.parts ?? []);
-		const parsed: unknown = JSON.parse(cleanJsonResponse(text));
-		return schema.parse(parsed);
+		return schema.parse(parseJsonSafe(text));
 	}
 
 	async embed(text: string): Promise<number[]> {
@@ -97,6 +96,15 @@ function formatMessages(messages: ChatMessage[]): { system: string | undefined; 
 		system: systemMessages.length > 0 ? systemMessages.join("\n\n") : undefined,
 		userText: conversationParts.join("\n"),
 	};
+}
+
+/** Parse JSON from LLM response text, throwing a sanitized error on failure */
+function parseJsonSafe(text: string): unknown {
+	try {
+		return JSON.parse(cleanJsonResponse(text));
+	} catch {
+		throw new Error("OpencodeLLMAdapter: LLM response was not valid JSON");
+	}
 }
 
 /** Extract text content from response parts */

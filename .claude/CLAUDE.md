@@ -67,7 +67,7 @@ src/
 │   └── retrieval.ts    # Memory retrieval service
 ├── ports/          # Interface definitions (LLMPort, StoragePort)
 ├── adapters/       # External dependencies
-│   ├── llm/        # opencode, vercel-ai, (anthropic)
+│   ├── llm/        # opencode, vercel-ai, utils, (anthropic)
 │   └── storage/    # sqlite, in-memory
 └── index.ts        # Public API + DI
 ```

@@ -73,7 +73,7 @@ describe("OpencodeLLMAdapter — chat", () => {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock client
 		const adapter = new OpencodeLLMAdapter({ client: client as any, sessionId: "sess-1" });
 
-		expect(adapter.chat([{ role: "user", content: "Hi" }])).rejects.toThrow(
+		await expect(adapter.chat([{ role: "user", content: "Hi" }])).rejects.toThrow(
 			"LLM chat request failed",
 		);
 	});
@@ -123,9 +123,9 @@ describe("OpencodeLLMAdapter — chatStructured", () => {
 			},
 		};
 
-		expect(adapter.chatStructured([{ role: "user", content: "test" }], schema)).rejects.toThrow(
-			"Schema validation failed",
-		);
+		await expect(
+			adapter.chatStructured([{ role: "user", content: "test" }], schema),
+		).rejects.toThrow("Schema validation failed");
 	});
 
 	test("chatStructured throws on error response", async () => {
@@ -135,9 +135,9 @@ describe("OpencodeLLMAdapter — chatStructured", () => {
 
 		const schema = { parse: (d: unknown) => d };
 
-		expect(adapter.chatStructured([{ role: "user", content: "test" }], schema)).rejects.toThrow(
-			"LLM structured chat request failed",
-		);
+		await expect(
+			adapter.chatStructured([{ role: "user", content: "test" }], schema),
+		).rejects.toThrow("LLM structured chat request failed");
 	});
 });
 
@@ -165,6 +165,6 @@ describe("OpencodeLLMAdapter — embed", () => {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock client
 		const adapter = new OpencodeLLMAdapter({ client: client as any, sessionId: "sess-1" });
 
-		expect(adapter.embed("hello")).rejects.toThrow("no embedFn provided");
+		await expect(adapter.embed("hello")).rejects.toThrow("no embedFn provided");
 	});
 });
