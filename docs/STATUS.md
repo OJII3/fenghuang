@@ -8,7 +8,7 @@
 
 - **M3: ConsolidationPipeline + SemanticMemory は完了**
 - M1 の Core ドメイン + In-memory adapter、M2 の Segmenter + EpisodicMemory + SQLite + Vercel AI adapter に加え、意味記憶統合パイプラインが実装済み
-- テスト 175 件が全通過（`bun test`）
+- テスト 181 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -76,8 +76,8 @@
 | SemanticMemory サービス      | `src/core/semantic-memory.ts`        | 完了         |
 | ConsolidationPipeline        | `src/core/consolidation.ts`          | 完了         |
 | Public API 更新              | `src/index.ts`                       | 完了         |
-| SemanticMemory テスト        | `tests/core/semantic-memory.test.ts` | 完了（13件） |
-| ConsolidationPipeline テスト | `tests/core/consolidation.test.ts`   | 完了（19件） |
+| SemanticMemory テスト        | `tests/core/semantic-memory.test.ts` | 完了（12件） |
+| ConsolidationPipeline テスト | `tests/core/consolidation.test.ts`   | 完了（26件） |
 
 ### M3 設計上の決定
 
