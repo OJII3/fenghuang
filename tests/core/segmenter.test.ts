@@ -376,3 +376,138 @@ describe("Segmenter — queue management", () => {
 		expect(user1Episodes).toHaveLength(1);
 	});
 });
+
+// --- Invalid LLM mock for schema validation tests ---
+
+function createInvalidLLM(invalidResponse: unknown): LLMPort {
+	return {
+		chat: async () => "",
+		chatStructured: async <T>(_msgs: ChatMessage[], schema: Schema<T>) =>
+			schema.parse(invalidResponse),
+		embed: async () => [0.1, 0.2],
+	};
+}
+
+describe("Segmenter — schema validation", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("rejects non-object response", async () => {
+		const segmenter = new Segmenter(createInvalidLLM("not an object"), storage, {
+			minMessages: 1,
+			softTrigger: 2,
+			hardTrigger: 5,
+		});
+
+		await segmenter.addMessage(userId, makeMessage("first"));
+		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow(
+			"Expected object",
+		);
+	});
+
+	test("rejects response without segments array", async () => {
+		const segmenter = new Segmenter(createInvalidLLM({}), storage, {
+			minMessages: 1,
+			softTrigger: 2,
+			hardTrigger: 5,
+		});
+
+		await segmenter.addMessage(userId, makeMessage("first"));
+		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow(
+			"Expected segments array",
+		);
+	});
+
+	test("rejects segment with missing title", async () => {
+		const segmenter = new Segmenter(
+			createInvalidLLM({
+				segments: [{ startIndex: 0, endIndex: 2, summary: "s", surprise: "low" }],
+			}),
+			storage,
+			{ minMessages: 1, softTrigger: 2, hardTrigger: 5 },
+		);
+
+		await segmenter.addMessage(userId, makeMessage("first"));
+		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("title");
+	});
+
+	test("rejects segment with invalid surprise", async () => {
+		const segmenter = new Segmenter(
+			createInvalidLLM({
+				segments: [
+					{
+						startIndex: 0,
+						endIndex: 2,
+						title: "t",
+						summary: "s",
+						surprise: "invalid",
+					},
+				],
+			}),
+			storage,
+			{ minMessages: 1, softTrigger: 2, hardTrigger: 5 },
+		);
+
+		await segmenter.addMessage(userId, makeMessage("first"));
+		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("surprise");
+	});
+
+	test("rejects segment with non-integer startIndex", async () => {
+		const segmenter = new Segmenter(
+			createInvalidLLM({
+				segments: [
+					{
+						startIndex: 1.5,
+						endIndex: 3,
+						title: "t",
+						summary: "s",
+						surprise: "low",
+					},
+				],
+			}),
+			storage,
+			{ minMessages: 1, softTrigger: 2, hardTrigger: 5 },
+		);
+
+		await segmenter.addMessage(userId, makeMessage("first"));
+		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow(
+			"startIndex",
+		);
+	});
+});
+
+describe("Segmenter — edge cases", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("segment with startIndex === endIndex creates no episode", async () => {
+		// The schema validation rejects endIndex <= startIndex, so a segment
+		// with startIndex === endIndex would be rejected at parse time.
+		const invalidLLM = createInvalidLLM({
+			segments: [
+				{
+					startIndex: 2,
+					endIndex: 2,
+					title: "Empty",
+					summary: "No messages",
+					surprise: "low",
+				},
+			],
+		});
+
+		const segmenter = new Segmenter(invalidLLM, storage, {
+			minMessages: 1,
+			softTrigger: 2,
+			hardTrigger: 5,
+		});
+
+		await segmenter.addMessage(userId, makeMessage("first"));
+		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("endIndex");
+	});
+});

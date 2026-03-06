@@ -6,6 +6,20 @@ import type { SemanticFact } from "../../core/domain/semantic-fact.ts";
 import type { ChatMessage, FactCategory } from "../../core/domain/types.ts";
 import type { StoragePort } from "../../ports/storage.ts";
 
+/* eslint-disable unicorn/prefer-string-raw -- backslash-heavy escaping is clearer with regular strings */
+function escapeLike(s: string): string {
+	return s.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+/* eslint-enable unicorn/prefer-string-raw */
+
+function parseJson<T>(raw: string, field: string): T {
+	try {
+		return JSON.parse(raw) as T;
+	} catch {
+		throw new Error(`Failed to parse ${field}: ${raw.slice(0, 100)}`);
+	}
+}
+
 /** SQLite storage adapter using bun:sqlite */
 export class SQLiteStorageAdapter implements StoragePort {
 	private db: Database;
@@ -70,6 +84,7 @@ export class SQLiteStorageAdapter implements StoragePort {
 		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)`);
 	}
 
+	// _userId is required by StoragePort interface; episode.userId is used for the actual insert
 	async saveEpisode(_userId: string, episode: Episode): Promise<void> {
 		this.db
 			.prepare(
@@ -129,6 +144,7 @@ export class SQLiteStorageAdapter implements StoragePort {
 			.run(Date.now(), episodeId);
 	}
 
+	// _userId is required by StoragePort interface; fact.userId is used for the actual insert
 	async saveFact(_userId: string, fact: SemanticFact): Promise<void> {
 		this.db
 			.prepare(
@@ -220,22 +236,24 @@ export class SQLiteStorageAdapter implements StoragePort {
 	}
 
 	async searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]> {
-		const pattern = `%${query}%`;
+		const safeLim = Math.max(1, Math.min(limit, 1000));
+		const pattern = `%${escapeLike(query)}%`;
 		const rows = this.db
 			.prepare(
-				`SELECT * FROM episodes WHERE user_id = ? AND (title LIKE ? COLLATE NOCASE OR summary LIKE ? COLLATE NOCASE) LIMIT ?`,
+				`SELECT * FROM episodes WHERE user_id = ? AND (title LIKE ? ESCAPE '\\' COLLATE NOCASE OR summary LIKE ? ESCAPE '\\' COLLATE NOCASE) LIMIT ?`,
 			)
-			.all(userId, pattern, pattern, limit) as EpisodeRow[];
+			.all(userId, pattern, pattern, safeLim) as EpisodeRow[];
 		return rows.map((r) => rowToEpisode(r));
 	}
 
 	async searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]> {
-		const pattern = `%${query}%`;
+		const safeLim = Math.max(1, Math.min(limit, 1000));
+		const pattern = `%${escapeLike(query)}%`;
 		const rows = this.db
 			.prepare(
-				`SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL AND (fact LIKE ? COLLATE NOCASE OR keywords LIKE ? COLLATE NOCASE) LIMIT ?`,
+				`SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL AND (fact LIKE ? ESCAPE '\\' COLLATE NOCASE OR keywords LIKE ? ESCAPE '\\' COLLATE NOCASE) LIMIT ?`,
 			)
-			.all(userId, pattern, pattern, limit) as FactRow[];
+			.all(userId, pattern, pattern, safeLim) as FactRow[];
 		return rows.map((r) => rowToFact(r));
 	}
 }
@@ -258,13 +276,19 @@ interface EpisodeRow {
 }
 
 function rowToEpisode(row: EpisodeRow): Episode {
+	const rawMessages = parseJson<Record<string, unknown>[]>(row.messages, "messages");
+	const messages: ChatMessage[] = rawMessages.map((m) => ({
+		role: m.role as ChatMessage["role"],
+		content: m.content as string,
+		...(m.timestamp ? { timestamp: new Date(m.timestamp as string) } : {}),
+	}));
 	return {
 		id: row.id,
 		userId: row.user_id,
 		title: row.title,
 		summary: row.summary,
-		messages: JSON.parse(row.messages) as ChatMessage[],
-		embedding: JSON.parse(row.embedding) as number[],
+		messages,
+		embedding: parseJson<number[]>(row.embedding, "embedding"),
 		surprise: row.surprise,
 		stability: row.stability,
 		difficulty: row.difficulty,
@@ -295,9 +319,9 @@ function rowToFact(row: FactRow): SemanticFact {
 		userId: row.user_id,
 		category: row.category as SemanticFact["category"],
 		fact: row.fact,
-		keywords: JSON.parse(row.keywords) as string[],
-		sourceEpisodicIds: JSON.parse(row.source_episodic_ids) as string[],
-		embedding: JSON.parse(row.embedding) as number[],
+		keywords: parseJson<string[]>(row.keywords, "keywords"),
+		sourceEpisodicIds: parseJson<string[]>(row.source_episodic_ids, "source_episodic_ids"),
+		embedding: parseJson<number[]>(row.embedding, "embedding"),
 		validAt: new Date(row.valid_at),
 		invalidAt: row.invalid_at === null ? null : new Date(row.invalid_at),
 		createdAt: new Date(row.created_at),

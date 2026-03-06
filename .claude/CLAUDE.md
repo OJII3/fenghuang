@@ -61,10 +61,10 @@ For more details, see docs/ARCHITECTURE.md
 src/
 ├── core/           # Core Domain (no external deps)
 │   ├── domain/     # Entities (Episode, SemanticFact, FSRSCard)
-│   ├── segmenter   # Event segmentation
-│   ├── episodic    # Episodic memory service
-│   ├── consolidation # Semantic consolidation pipeline
-│   └── retrieval   # Memory retrieval service
+│   ├── segmenter.ts    # Event segmentation
+│   ├── episodic.ts     # Episodic memory service
+│   ├── consolidation.ts # Semantic consolidation pipeline
+│   └── retrieval.ts    # Memory retrieval service
 ├── ports/          # Interface definitions (LLMPort, StoragePort)
 ├── adapters/       # External dependencies
 │   ├── llm/        # opencode, (vercel-ai), (anthropic)

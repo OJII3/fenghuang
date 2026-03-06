@@ -161,6 +161,26 @@ describe("EpisodicMemory — FSRS review", () => {
 		expect(afterAgain!.stability).toBeLessThan(stabilityAfterGood);
 	});
 
+	test("review with 'hard' rating adjusts stability", async () => {
+		const ep = makeEpisode();
+		await storage.saveEpisode(userId, ep);
+
+		// First review to set baseline
+		const reviewTime1 = new Date("2026-01-01T00:00:00Z");
+		await episodic.review(ep.id, "good", reviewTime1);
+		const afterGood = await storage.getEpisodeById(ep.id);
+		const stabilityAfterGood = afterGood!.stability;
+
+		// Second review with "hard" after some time
+		const reviewTime2 = new Date("2026-01-02T00:00:00Z");
+		await episodic.review(ep.id, "hard", reviewTime2);
+		const afterHard = await storage.getEpisodeById(ep.id);
+
+		// "hard" should decrease stability compared to what "good" produced,
+		// but not as much as "again" would
+		expect(afterHard!.stability).toBeLessThan(stabilityAfterGood);
+	});
+
 	test("review returns null for unknown episode", async () => {
 		const result = await episodic.review("nonexistent", "good");
 		expect(result).toBeNull();

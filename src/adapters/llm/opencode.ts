@@ -41,7 +41,7 @@ export class OpencodeLLMAdapter implements LLMPort {
 		});
 
 		if (response.error) {
-			throw new Error(`opencode chat failed: ${JSON.stringify(response.error)}`);
+			throw new Error("LLM chat request failed");
 		}
 
 		return extractTextFromParts(response.data?.parts ?? []);
@@ -61,7 +61,7 @@ export class OpencodeLLMAdapter implements LLMPort {
 		});
 
 		if (response.error) {
-			throw new Error(`opencode chatStructured failed: ${JSON.stringify(response.error)}`);
+			throw new Error("LLM structured chat request failed");
 		}
 
 		const text = extractTextFromParts(response.data?.parts ?? []);

@@ -76,11 +76,14 @@ src/
 
 ```typescript
 // src/ports/llm.ts
-export interface ChatMessage {
-	role: "system" | "user" | "assistant";
-	content: string;
+import type { ChatMessage } from "../core/domain/types.ts";
+
+/** Schema definition for structured output */
+export interface Schema<T> {
+	parse(data: unknown): T;
 }
 
+/** LLM Port — Core depends only on this interface */
 export interface LLMPort {
 	/** 自由形式のチャット応答 */
 	chat(messages: ChatMessage[]): Promise<string>;
@@ -166,19 +169,30 @@ export interface StoragePort {
 | difficulty     | number         | 学習難易度         |
 | lastReviewedAt | `Date \| null` | 最後のレビュー日時 |
 
+### 6.4 ChatMessage
+
+```typescript
+// src/core/domain/types.ts
+export type MessageRole = "system" | "user" | "assistant";
+
+export interface ChatMessage {
+	role: MessageRole;
+	content: string;
+	timestamp?: Date;
+}
+```
+
 ## 7. 主要シーケンス
 
 ### 7.1 メッセージ追加 → セグメンテーション
 
-1. 呼び出し側が `addMessage(userId, message)` を呼ぶ
-2. メッセージキューに追加される
-3. キューのメッセージ数が閾値に達したらセグメンテーションを実行
-4. LLMPort.chatStructured() でセグメント境界と surprise を判定
-5. 境界で分割し、各セグメントについて:
-   a. LLMPort.chat() で title と summary を生成
-   b. LLMPort.embed() で embedding を生成
-   c. FSRS 初期パラメータを設定
-   d. StoragePort.saveEpisode() で保存
+1. `addMessage(userId, message)` を呼ぶ
+2. メッセージキューに追加
+3. softTrigger 到達 → LLM にセグメント判定を依頼（省略可能）
+   3'. hardTrigger 到達 → 強制セグメンテーション
+4. LLMPort.chatStructured() でセグメント境界、title、summary、surprise を一括判定
+5. 各セグメントについて LLMPort.embed() で embedding 生成、FSRS 初期化、StoragePort.saveEpisode()
+6. 処理済みメッセージをクリア、残りを再キューイング
 
 ### 7.2 意味記憶統合
 
@@ -216,8 +230,10 @@ tests/
 │   │   └── fsrs.test.ts
 │   ├── segmenter.test.ts
 │   ├── episodic.test.ts
-│   ├── consolidation.test.ts
-│   └── retrieval.test.ts
+│   ├── consolidation.test.ts  (M3予定)
+│   └── retrieval.test.ts      (M4予定)
+├── integration/
+│   └── segmenter-sqlite.test.ts
 └── adapters/
     └── storage/
         ├── sqlite.test.ts

@@ -244,6 +244,42 @@ describe("SQLiteStorage — message queue", () => {
 		const queue = await storage.getMessageQueue(userId);
 		expect(queue).toHaveLength(0);
 	});
+
+	test("preserves message timestamp through round-trip", async () => {
+		const ts = new Date("2026-03-01T12:00:00Z");
+		await storage.pushMessage(userId, { role: "user", content: "timed", timestamp: ts });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.timestamp).toBeInstanceOf(Date);
+		expect(queue[0]!.timestamp!.getTime()).toBe(ts.getTime());
+	});
+
+	test("message without timestamp round-trips correctly", async () => {
+		await storage.pushMessage(userId, { role: "user", content: "no time" });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.timestamp).toBeUndefined();
+	});
+});
+
+describe("SQLiteStorage — updateFact edge cases", () => {
+	let storage: SQLiteStorageAdapter;
+
+	beforeEach(() => {
+		storage = new SQLiteStorageAdapter(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("updateFact on nonexistent fact does not throw", async () => {
+		await expect(
+			storage.updateFact("nonexistent-id", { fact: "Updated fact" }),
+		).resolves.toBeUndefined();
+	});
 });
 
 describe("SQLiteStorage — search episodes", () => {
