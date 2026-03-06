@@ -16,9 +16,24 @@ function escapeLike(s: string): string {
 		.replaceAll("_", String.raw`\_`);
 }
 
-/** Escape a query string for FTS5 phrase search */
 function escapeFts5(query: string): string {
 	return `"${query.replaceAll('"', '""')}"`;
+}
+
+function clampLimit(limit: number): number {
+	return Math.max(1, Math.min(limit, 1000));
+}
+
+function sortBySimilarity<T extends { embedding: number[] }>(
+	items: T[],
+	query: number[],
+	limit: number,
+): T[] {
+	return items
+		.map((item) => ({ item, sim: cosineSimilarity(query, item.embedding) }))
+		.toSorted((a, b) => b.sim - a.sim)
+		.slice(0, limit)
+		.map((r) => r.item);
 }
 
 /** SQLite storage adapter using bun:sqlite */
@@ -37,86 +52,48 @@ export class SQLiteStorageAdapter implements StoragePort {
 	}
 
 	private createTables(): void {
-		this.db.exec(`
-			CREATE TABLE IF NOT EXISTS episodes (
-				id TEXT PRIMARY KEY,
-				user_id TEXT NOT NULL,
-				title TEXT NOT NULL,
-				summary TEXT NOT NULL,
-				messages TEXT NOT NULL,
-				embedding TEXT NOT NULL,
-				surprise REAL NOT NULL,
-				stability REAL NOT NULL,
-				difficulty REAL NOT NULL,
-				start_at INTEGER NOT NULL,
-				end_at INTEGER NOT NULL,
-				created_at INTEGER NOT NULL,
-				last_reviewed_at INTEGER,
-				consolidated_at INTEGER
-			)
-		`);
-		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_episodes_user_id ON episodes(user_id)`);
+		this.createEpisodeTables();
+		this.createFactTables();
+		this.createMessageQueue();
+	}
 
-		// FTS5 for episodes
-		this.db.exec(`
-			CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts USING fts5(
-				id UNINDEXED, title, summary
-			)
-		`);
-		this.db.exec(`
-			CREATE TRIGGER IF NOT EXISTS episodes_fts_ai AFTER INSERT ON episodes BEGIN
-				INSERT INTO episodes_fts(id, title, summary) VALUES (new.id, new.title, new.summary);
-			END
-		`);
-		this.db.exec(`
-			CREATE TRIGGER IF NOT EXISTS episodes_fts_ad AFTER DELETE ON episodes BEGIN
-				DELETE FROM episodes_fts WHERE id = old.id;
-			END
-		`);
+	private createEpisodeTables(): void {
+		this.db.exec(`CREATE TABLE IF NOT EXISTS episodes (
+			id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, summary TEXT NOT NULL,
+			messages TEXT NOT NULL, embedding TEXT NOT NULL, surprise REAL NOT NULL,
+			stability REAL NOT NULL, difficulty REAL NOT NULL, start_at INTEGER NOT NULL,
+			end_at INTEGER NOT NULL, created_at INTEGER NOT NULL, last_reviewed_at INTEGER,
+			consolidated_at INTEGER)`);
+		this.db.exec("CREATE INDEX IF NOT EXISTS idx_episodes_user_id ON episodes(user_id)");
+		this.db.exec(
+			"CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts USING fts5(id UNINDEXED, title, summary)",
+		);
+		this.db.exec(`CREATE TRIGGER IF NOT EXISTS episodes_fts_ai AFTER INSERT ON episodes BEGIN
+			INSERT INTO episodes_fts(id, title, summary) VALUES (new.id, new.title, new.summary); END`);
+		this.db.exec(`CREATE TRIGGER IF NOT EXISTS episodes_fts_ad AFTER DELETE ON episodes BEGIN
+			DELETE FROM episodes_fts WHERE id = old.id; END`);
+	}
 
-		this.db.exec(`
-			CREATE TABLE IF NOT EXISTS semantic_facts (
-				id TEXT PRIMARY KEY,
-				user_id TEXT NOT NULL,
-				category TEXT NOT NULL,
-				fact TEXT NOT NULL,
-				keywords TEXT NOT NULL,
-				source_episodic_ids TEXT NOT NULL,
-				embedding TEXT NOT NULL,
-				valid_at INTEGER NOT NULL,
-				invalid_at INTEGER,
-				created_at INTEGER NOT NULL
-			)
-		`);
-		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_facts_user_id ON semantic_facts(user_id)`);
+	private createFactTables(): void {
+		this.db.exec(`CREATE TABLE IF NOT EXISTS semantic_facts (
+			id TEXT PRIMARY KEY, user_id TEXT NOT NULL, category TEXT NOT NULL, fact TEXT NOT NULL,
+			keywords TEXT NOT NULL, source_episodic_ids TEXT NOT NULL, embedding TEXT NOT NULL,
+			valid_at INTEGER NOT NULL, invalid_at INTEGER, created_at INTEGER NOT NULL)`);
+		this.db.exec("CREATE INDEX IF NOT EXISTS idx_facts_user_id ON semantic_facts(user_id)");
+		this.db.exec(
+			"CREATE VIRTUAL TABLE IF NOT EXISTS semantic_facts_fts USING fts5(id UNINDEXED, fact, keywords)",
+		);
+		this.db.exec(`CREATE TRIGGER IF NOT EXISTS facts_fts_ai AFTER INSERT ON semantic_facts BEGIN
+			INSERT INTO semantic_facts_fts(id, fact, keywords) VALUES (new.id, new.fact, new.keywords); END`);
+		this.db.exec(`CREATE TRIGGER IF NOT EXISTS facts_fts_ad AFTER DELETE ON semantic_facts BEGIN
+			DELETE FROM semantic_facts_fts WHERE id = old.id; END`);
+	}
 
-		// FTS5 for semantic_facts
-		this.db.exec(`
-			CREATE VIRTUAL TABLE IF NOT EXISTS semantic_facts_fts USING fts5(
-				id UNINDEXED, fact, keywords
-			)
-		`);
-		this.db.exec(`
-			CREATE TRIGGER IF NOT EXISTS facts_fts_ai AFTER INSERT ON semantic_facts BEGIN
-				INSERT INTO semantic_facts_fts(id, fact, keywords) VALUES (new.id, new.fact, new.keywords);
-			END
-		`);
-		this.db.exec(`
-			CREATE TRIGGER IF NOT EXISTS facts_fts_ad AFTER DELETE ON semantic_facts BEGIN
-				DELETE FROM semantic_facts_fts WHERE id = old.id;
-			END
-		`);
-
-		this.db.exec(`
-			CREATE TABLE IF NOT EXISTS message_queue (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				user_id TEXT NOT NULL,
-				role TEXT NOT NULL,
-				content TEXT NOT NULL,
-				timestamp INTEGER
-			)
-		`);
-		this.db.exec(`CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)`);
+	private createMessageQueue(): void {
+		this.db.exec(`CREATE TABLE IF NOT EXISTS message_queue (
+			id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL,
+			role TEXT NOT NULL, content TEXT NOT NULL, timestamp INTEGER)`);
+		this.db.exec("CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)");
 	}
 
 	async saveEpisode(userId: string, episode: Episode): Promise<void> {
@@ -285,79 +262,54 @@ export class SQLiteStorageAdapter implements StoragePort {
 	}
 
 	async searchEpisodes(userId: string, query: string, limit: number): Promise<Episode[]> {
-		const safeLim = Math.max(1, Math.min(limit, 1000));
-
-		// Try FTS5 first, fall back to LIKE on failure
+		const lim = clampLimit(limit);
 		try {
-			const ftsQuery = escapeFts5(query);
 			const rows = this.db
 				.prepare(
-					`SELECT e.* FROM episodes e
-					 JOIN episodes_fts ON episodes_fts.id = e.id
-					 WHERE episodes_fts MATCH ? AND e.user_id = ?
-					 ORDER BY bm25(episodes_fts)
-					 LIMIT ?`,
+					`SELECT e.* FROM episodes e JOIN episodes_fts ON episodes_fts.id = e.id WHERE episodes_fts MATCH ? AND e.user_id = ? ORDER BY bm25(episodes_fts) LIMIT ?`,
 				)
-				.all(ftsQuery, userId, safeLim) as EpisodeRow[];
+				.all(escapeFts5(query), userId, lim) as EpisodeRow[];
 			return rows.map((r) => rowToEpisode(r));
 		} catch {
-			const pattern = `%${escapeLike(query)}%`;
+			const p = `%${escapeLike(query)}%`;
 			const rows = this.db
 				.prepare(
 					`SELECT * FROM episodes WHERE user_id = ? AND (title LIKE ? ESCAPE '\\' COLLATE NOCASE OR summary LIKE ? ESCAPE '\\' COLLATE NOCASE) LIMIT ?`,
 				)
-				.all(userId, pattern, pattern, safeLim) as EpisodeRow[];
+				.all(userId, p, p, lim) as EpisodeRow[];
 			return rows.map((r) => rowToEpisode(r));
 		}
 	}
 
 	async searchFacts(userId: string, query: string, limit: number): Promise<SemanticFact[]> {
-		const safeLim = Math.max(1, Math.min(limit, 1000));
-
-		// Try FTS5 first, fall back to LIKE on failure
+		const lim = clampLimit(limit);
 		try {
-			const ftsQuery = escapeFts5(query);
 			const rows = this.db
 				.prepare(
-					`SELECT f.* FROM semantic_facts f
-					 JOIN semantic_facts_fts ON semantic_facts_fts.id = f.id
-					 WHERE semantic_facts_fts MATCH ? AND f.user_id = ? AND f.invalid_at IS NULL
-					 ORDER BY bm25(semantic_facts_fts)
-					 LIMIT ?`,
+					`SELECT f.* FROM semantic_facts f JOIN semantic_facts_fts ON semantic_facts_fts.id = f.id WHERE semantic_facts_fts MATCH ? AND f.user_id = ? AND f.invalid_at IS NULL ORDER BY bm25(semantic_facts_fts) LIMIT ?`,
 				)
-				.all(ftsQuery, userId, safeLim) as FactRow[];
+				.all(escapeFts5(query), userId, lim) as FactRow[];
 			return rows.map((r) => rowToFact(r));
 		} catch {
-			const pattern = `%${escapeLike(query)}%`;
+			const p = `%${escapeLike(query)}%`;
 			const rows = this.db
 				.prepare(
 					`SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL AND (fact LIKE ? ESCAPE '\\' COLLATE NOCASE OR keywords LIKE ? ESCAPE '\\' COLLATE NOCASE) LIMIT ?`,
 				)
-				.all(userId, pattern, pattern, safeLim) as FactRow[];
+				.all(userId, p, p, lim) as FactRow[];
 			return rows.map((r) => rowToFact(r));
 		}
 	}
-
-	// --- Vector search ---
 
 	async searchEpisodesByEmbedding(
 		userId: string,
 		embedding: number[],
 		limit: number,
 	): Promise<Episode[]> {
-		const safeLim = Math.max(1, Math.min(limit, 1000));
-		const rows = this.db
-			.prepare("SELECT * FROM episodes WHERE user_id = ?")
-			.all(userId) as EpisodeRow[];
-
-		return rows
-			.map((r) => {
-				const ep = rowToEpisode(r);
-				return { episode: ep, similarity: cosineSimilarity(embedding, ep.embedding) };
-			})
-			.sort((a, b) => b.similarity - a.similarity)
-			.slice(0, safeLim)
-			.map((r) => r.episode);
+		const episodes = (
+			this.db.prepare("SELECT * FROM episodes WHERE user_id = ?").all(userId) as EpisodeRow[]
+		).map((r) => rowToEpisode(r));
+		return sortBySimilarity(episodes, embedding, clampLimit(limit));
 	}
 
 	async searchFactsByEmbedding(
@@ -365,18 +317,11 @@ export class SQLiteStorageAdapter implements StoragePort {
 		embedding: number[],
 		limit: number,
 	): Promise<SemanticFact[]> {
-		const safeLim = Math.max(1, Math.min(limit, 1000));
-		const rows = this.db
-			.prepare("SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL")
-			.all(userId) as FactRow[];
-
-		return rows
-			.map((r) => {
-				const fact = rowToFact(r);
-				return { fact, similarity: cosineSimilarity(embedding, fact.embedding) };
-			})
-			.sort((a, b) => b.similarity - a.similarity)
-			.slice(0, safeLim)
-			.map((r) => r.fact);
+		const facts = (
+			this.db
+				.prepare("SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL")
+				.all(userId) as FactRow[]
+		).map((r) => rowToFact(r));
+		return sortBySimilarity(facts, embedding, clampLimit(limit));
 	}
 }

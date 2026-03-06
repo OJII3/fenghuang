@@ -151,7 +151,7 @@ export class InMemoryStorageAdapter implements StoragePort {
 		return [...this.episodes.values()]
 			.filter((e) => e.userId === userId)
 			.map((e) => ({ episode: e, similarity: cosineSimilarity(embedding, e.embedding) }))
-			.sort((a, b) => b.similarity - a.similarity)
+			.toSorted((a, b) => b.similarity - a.similarity)
 			.slice(0, safeLim)
 			.map((r) => r.episode);
 	}
@@ -165,7 +165,7 @@ export class InMemoryStorageAdapter implements StoragePort {
 		return [...this.facts.values()]
 			.filter((f) => f.userId === userId && f.invalidAt === null)
 			.map((f) => ({ fact: f, similarity: cosineSimilarity(embedding, f.embedding) }))
-			.sort((a, b) => b.similarity - a.similarity)
+			.toSorted((a, b) => b.similarity - a.similarity)
 			.slice(0, safeLim)
 			.map((r) => r.fact);
 	}
