@@ -34,7 +34,7 @@
     │  Adapters   │    │  Adapters   │
     ├─────────────┤    ├─────────────┤
     │ opencode    │    │ SQLite      │
-    │ (Vercel AI) │    │ (Postgres)  │
+    │ Vercel AI   │    │ (Postgres)  │
     │ (Anthropic) │    │ in-memory   │
     └─────────────┘    └─────────────┘
 
@@ -62,7 +62,8 @@ src/
 │
 ├── adapters/                # Adapter（外部依存はここだけ）
 │   ├── llm/
-│   │   └── opencode.ts     # opencode LLM adapter
+│   │   ├── opencode.ts     # opencode LLM adapter
+│   │   └── vercel-ai.ts    # Vercel AI SDK adapter
 │   └── storage/
 │       ├── sqlite.ts       # SQLite adapter（bun:sqlite）
 │       └── in-memory.ts    # In-memory adapter（テスト用）
@@ -242,10 +243,11 @@ tests/
 
 ## 10. 設計上の決定
 
-| 決定                                      | 理由                                                  |
-| ----------------------------------------- | ----------------------------------------------------- |
-| ライブラリとして提供（HTTP サーバーなし） | vicissitude から直接 import で使えるほうがシンプル    |
-| Hexagonal Architecture                    | LLM/Storage の差し替え容易性、テスト容易性            |
-| SQLite（bun:sqlite）                      | 組み込みで依存なし、vicissitude と同じ Bun ランタイム |
-| FSRS アルゴリズム                         | plast-mem で実証済み、記憶の減衰モデルとして自然      |
-| opencode を最初の LLM adapter             | vicissitude で既に使用中                              |
+| 決定                                      | 理由                                                             |
+| ----------------------------------------- | ---------------------------------------------------------------- |
+| ライブラリとして提供（HTTP サーバーなし） | vicissitude から直接 import で使えるほうがシンプル               |
+| Hexagonal Architecture                    | LLM/Storage の差し替え容易性、テスト容易性                       |
+| SQLite（bun:sqlite）                      | 組み込みで依存なし、vicissitude と同じ Bun ランタイム            |
+| FSRS アルゴリズム                         | plast-mem で実証済み、記憶の減衰モデルとして自然                 |
+| opencode を最初の LLM adapter             | vicissitude で既に使用中                                         |
+| Vercel AI SDK を第二の LLM adapter        | Embedding / Structured output ネイティブ対応、プロバイダー非依存 |

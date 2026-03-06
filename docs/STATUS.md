@@ -6,7 +6,7 @@
 
 ## 2. 現在の真実（Project Truth）
 
-- **M2: Segmenter + EpisodicMemory + SQLite adapter + opencode adapter は完了**
+- **M2: Segmenter + EpisodicMemory + SQLite adapter + opencode adapter + Vercel AI adapter は完了**
 - M1 の Core ドメイン + In-memory adapter に加え、Core サービスと外部 adapter が実装済み
 - テスト 114 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
@@ -59,14 +59,17 @@
 | opencode LLM adapter  | `src/adapters/llm/opencode.ts`               | 完了         |
 | 統合テスト            | `tests/integration/segmenter-sqlite.test.ts` | 完了（6件）  |
 | Public API 更新       | `src/index.ts`                               | 完了         |
+| Vercel AI LLM adapter | `src/adapters/llm/vercel-ai.ts`              | 完了         |
+| Vercel AI テスト      | `tests/adapters/llm/vercel-ai.test.ts`       | 完了（14件） |
 
 ### M2 設計上の決定
 
 1. **Embedding**: opencode SDK に embedding API がないため、`EmbedFn` をコンストラクタ注入する設計
 2. **opencode chatStructured**: SDK に `format` パラメータがないため、プロンプトで JSON 出力を指示し `schema.parse()` でバリデーション
-3. **SQLite 検索**: M2 では LIKE 検索で実装。FTS5 は M4（ハイブリッド検索）で導入予定
-4. **EpisodicMemory**: `StoragePort` のみに依存（`LLMPort` は不要）
-5. **Segmenter のフロー**: `addMessage()` → キュー追加 → 閾値チェック → LLM でセグメント判定 → Episode 生成・保存
+3. **Vercel AI adapter**: `generateText` + `embed` をネイティブ使用。`chatStructured` は `generateObject` 不使用（fenghuang の `Schema<T>` は Zod ではないため、opencode と同様のプロンプトベース JSON + `schema.parse()`）
+4. **SQLite 検索**: M2 では LIKE 検索で実装。FTS5 は M4（ハイブリッド検索）で導入予定
+5. **EpisodicMemory**: `StoragePort` のみに依存（`LLMPort` は不要）
+6. **Segmenter のフロー**: `addMessage()` → キュー追加 → 閾値チェック → LLM でセグメント判定 → Episode 生成・保存
 
 ## 6. 直近タスク（M3）
 

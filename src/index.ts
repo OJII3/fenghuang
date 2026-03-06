@@ -32,6 +32,8 @@ export { InMemoryStorageAdapter } from "./adapters/storage/in-memory.ts";
 export { SQLiteStorageAdapter } from "./adapters/storage/sqlite.ts";
 export { OpencodeLLMAdapter } from "./adapters/llm/opencode.ts";
 export type { EmbedFn, OpencodeLLMAdapterOptions } from "./adapters/llm/opencode.ts";
+export { VercelAIAdapter } from "./adapters/llm/vercel-ai.ts";
+export type { VercelAIAdapterOptions } from "./adapters/llm/vercel-ai.ts";
 
 /** Fenghuang instance — the main entry point */
 export interface Fenghuang {
