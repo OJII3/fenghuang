@@ -6,9 +6,9 @@
 
 ## 2. 現在の真実（Project Truth）
 
-- **M2: Segmenter + EpisodicMemory + SQLite adapter + Vercel AI adapter は完了**
-- M1 の Core ドメイン + In-memory adapter に加え、Core サービスと外部 adapter が実装済み
-- テスト 143 件が全通過（`bun test`）— opencode adapter 削除により 9 件減
+- **M3: ConsolidationPipeline + SemanticMemory は完了**
+- M1 の Core ドメイン + In-memory adapter、M2 の Segmenter + EpisodicMemory + SQLite + Vercel AI adapter に加え、意味記憶統合パイプラインが実装済み
+- テスト 175 件が全通過（`bun test`）
 - `nr check`（oxlint + oxfmt + tsc --noEmit）がパス
 - Core（`src/core/`）は外部パッケージに依存していないことを確認済み
 - Nix flake + direnv で Bun 開発環境は準備済み
@@ -69,11 +69,28 @@
 3. **EpisodicMemory**: `StoragePort` のみに依存（`LLMPort` は不要）
 4. **Segmenter のフロー**: `addMessage()` → キュー追加 → 閾値チェック → LLM でセグメント判定 → Episode 生成・保存
 
-## 6. 直近タスク（M3）
+## 6. M3 成果物
 
-1. ConsolidationPipeline の実装（エピソード → セマンティックファクト変換）
-2. SemanticMemory サービスの実装
-3. Retrieval サービスの実装（エピソード + セマンティック統合検索）
+| 項目                         | ファイル                             | ステータス   |
+| ---------------------------- | ------------------------------------ | ------------ |
+| SemanticMemory サービス      | `src/core/semantic-memory.ts`        | 完了         |
+| ConsolidationPipeline        | `src/core/consolidation.ts`          | 完了         |
+| Public API 更新              | `src/index.ts`                       | 完了         |
+| SemanticMemory テスト        | `tests/core/semantic-memory.test.ts` | 完了（13件） |
+| ConsolidationPipeline テスト | `tests/core/consolidation.test.ts`   | 完了（19件） |
+
+### M3 設計上の決定
+
+1. **ConsolidationPipeline**: `LLMPort.chatStructured()` で 1 エピソードにつき 1 回 LLM 呼び出し。既存事実一覧をプロンプトに含め、LLM にアクション（New/Reinforce/Update/Invalidate）を決定させる
+2. **SemanticMemory**: `StoragePort` のみに依存する薄いサービス（`EpisodicMemory` と同じ DI パターン）
+3. **スキーマバリデーション**: Segmenter と同じ `Schema<T>` パターンを使用。アクション別に `existingFactId` の必須チェックを実施
+4. **逐次処理**: エピソード間で事実の状態が変わるため、各エピソードを逐次処理し、毎回既存事実を再取得
+
+## 6.5 直近タスク（M4）
+
+1. Retrieval サービスの実装（エピソード + セマンティック統合検索、RRF リランキング）
+2. FTS5 による全文検索の導入
+3. ハイブリッド検索（ベクトル + テキスト）の実装
 
 ## 7. ブロッカー
 
@@ -85,16 +102,16 @@
 
 ## 8.5 セキュリティレビュー指摘事項（PR #6 レビューで検出、既存コードベース対象）
 
-| 優先度  | 項目                                                                                     |
-| ------- | ---------------------------------------------------------------------------------------- |
-| WARNING | ID ベースのストレージ操作（`getEpisodeById` 等）に userId 検証がなくテナント分離が不完全  |
-| WARNING | `saveEpisode`/`saveFact` で引数 userId とエンティティ userId の不一致を検証していない     |
+| 優先度  | 項目                                                                                          |
+| ------- | --------------------------------------------------------------------------------------------- |
+| WARNING | ID ベースのストレージ操作（`getEpisodeById` 等）に userId 検証がなくテナント分離が不完全      |
+| WARNING | `saveEpisode`/`saveFact` で引数 userId とエンティティ userId の不一致を検証していない         |
 | WARNING | Segmenter のプロンプトで `</conversation>` タグのエスケープが未実装（インジェクションリスク） |
-| WARNING | SQLite から解析した JSON（messages, embedding）の構造検証が不足                           |
-| WARNING | `parseJson` のエラーメッセージに生データ（最大100文字）が含まれ漏洩リスクあり             |
-| INFO    | LLM API 呼び出しのレート制限・コスト制御が未実装                                         |
-| INFO    | InMemoryStorageAdapter の search limit バリデーションが SQLite と不統一                   |
-| INFO    | `cleanJsonResponse` ユーティリティの直接テスト（`utils.test.ts`）が未作成                 |
+| WARNING | SQLite から解析した JSON（messages, embedding）の構造検証が不足                               |
+| WARNING | `parseJson` のエラーメッセージに生データ（最大100文字）が含まれ漏洩リスクあり                 |
+| INFO    | LLM API 呼び出しのレート制限・コスト制御が未実装                                              |
+| INFO    | InMemoryStorageAdapter の search limit バリデーションが SQLite と不統一                       |
+| INFO    | `cleanJsonResponse` ユーティリティの直接テスト（`utils.test.ts`）が未作成                     |
 
 ## 9. 再開時コンテキスト
 
