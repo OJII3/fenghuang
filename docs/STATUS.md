@@ -2,7 +2,7 @@
 
 ## 1. 最終更新
 
-2026-03-07 / Claude
+2026-03-08 / Claude
 
 ## 2. 現在の真実（Project Truth）
 
@@ -26,7 +26,7 @@
 2. ライブラリとして提供（HTTP サーバーなし）
 3. エピソード記憶 + 意味記憶の両方を実装
 4. Storage MVP: SQLite（bun:sqlite）
-5. LLM MVP: Vercel AI SDK adapter
+5. LLM MVP: Vercel AI SDK adapter（Vercel AI SDK プロバイダー経由で OpenCode, Ollama 等にも対応）
 6. plast-mem の FSRS / イベントセグメンテーション設計を参考にする
 
 ## 4. M1 成果物

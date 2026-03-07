@@ -34,11 +34,48 @@
     │  Adapters   │    │  Adapters   │
     ├─────────────┤    ├─────────────┤
     │ Vercel AI   │    │ SQLite      │
-    │ (Anthropic) │    │ (Postgres)  │
+    │ + providers │    │ (Postgres)  │
     │             │    │ in-memory   │
     └─────────────┘    └─────────────┘
 
 () = 将来追加予定
+```
+
+### 3.1 LLM プロバイダー構成
+
+VercelAIAdapter は Vercel AI SDK のプロバイダーエコシステムを通じて多様な LLM/Embedding バックエンドに対応する。`model`（チャット用）と `embeddingModel`（埋め込み用）を独立して設定可能。
+
+| 用途      | プロバイダー | パッケージ                     | 備考                                          |
+| --------- | ------------ | ------------------------------ | --------------------------------------------- |
+| Chat      | Anthropic    | `@ai-sdk/anthropic`            | Claude モデル                                 |
+| Chat      | OpenAI       | `@ai-sdk/openai`               | GPT モデル                                    |
+| Chat      | OpenCode     | `ai-sdk-provider-opencode-sdk` | OpenCode 経由で複数プロバイダーを統一利用     |
+| Embedding | OpenAI       | `@ai-sdk/openai`               | text-embedding-3-small 等                     |
+| Embedding | Ollama       | `ollama-ai-provider-v2`        | ローカル埋め込みモデル（nomic-embed-text 等） |
+
+**構成例: OpenCode（チャット）+ Ollama（埋め込み）**
+
+```typescript
+import { createOpencode } from "ai-sdk-provider-opencode-sdk";
+import { ollama } from "ollama-ai-provider-v2";
+import { VercelAIAdapter } from "fenghuang";
+
+const adapter = new VercelAIAdapter({
+	model: createOpencode()("anthropic/claude-sonnet-4-5-20250929"),
+	embeddingModel: ollama.embedding("nomic-embed-text"),
+});
+```
+
+**構成例: OpenAI（チャット + 埋め込み）**
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { VercelAIAdapter } from "fenghuang";
+
+const adapter = new VercelAIAdapter({
+	model: openai("gpt-4o"),
+	embeddingModel: openai.embedding("text-embedding-3-small"),
+});
 ```
 
 ## 4. ディレクトリ構成
