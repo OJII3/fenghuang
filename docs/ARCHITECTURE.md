@@ -78,6 +78,21 @@ const adapter = new VercelAIAdapter({
 });
 ```
 
+**構成例: Anthropic（チャット）+ OpenAI（埋め込み）**
+
+```typescript
+import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import { VercelAIAdapter } from "fenghuang";
+
+const adapter = new VercelAIAdapter({
+	model: anthropic("claude-sonnet-4-5-20250929"),
+	embeddingModel: openai.embedding("text-embedding-3-small"),
+});
+```
+
+> **Note:** Anthropic は埋め込みモデルを提供していないため、埋め込み用に別のプロバイダーが必要です。
+
 ## 4. ディレクトリ構成
 
 ```
@@ -307,6 +322,7 @@ tests/
 │   │   └── utils.test.ts
 │   └── storage/
 │       ├── sqlite.test.ts
+│       ├── sqlite-schema.test.ts
 │       ├── in-memory.test.ts
 │       ├── parse-helpers.test.ts
 │       └── vector-math.test.ts

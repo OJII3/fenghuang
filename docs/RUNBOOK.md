@@ -53,6 +53,7 @@ bun add @ai-sdk/anthropic
 ```
 
 - 環境変数 `ANTHROPIC_API_KEY` を設定
+- Anthropic は埋め込みモデルを提供していないため、埋め込み用に別のプロバイダー（OpenAI, Ollama 等）が必要
 
 詳細な構成例は ARCHITECTURE.md §3.1 を参照。
 
