@@ -50,7 +50,7 @@ For more details, see docs/ARCHITECTURE.md
     │  Adapters   │    │  Adapters   │
     ├─────────────┤    ├─────────────┤
     │ Vercel AI   │    │ SQLite      │
-    │ (Anthropic) │    │ (Postgres)  │
+    │ + providers │    │ (Postgres)  │
     │             │    │ in-memory   │
     └─────────────┘    └─────────────┘
 ```

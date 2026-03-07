@@ -23,6 +23,38 @@
 
 1. Nix flake + direnv で Bun が自動的に利用可能になる
 2. `bun install` で依存パッケージをインストール
+3. LLM プロバイダーパッケージをインストール（利用するプロバイダーに応じて選択）
+
+### 3.1.1 LLM プロバイダーのセットアップ
+
+fenghuang はライブラリとして提供されるため、LLM プロバイダーは利用者が選択・インストールする。VercelAIAdapter の `model`（チャット用）と `embeddingModel`（埋め込み用）は独立して設定可能。
+
+**OpenCode + Ollama 構成（推奨）**
+
+```bash
+bun add ai-sdk-provider-opencode-sdk ollama-ai-provider-v2
+```
+
+- OpenCode: ローカルまたはリモートの LLM に統一的にアクセス。事前に `opencode` サーバーを起動しておく
+- Ollama: ローカルで埋め込みモデルを実行。事前に `ollama pull nomic-embed-text` 等でモデルを取得しておく
+
+**OpenAI 構成**
+
+```bash
+bun add @ai-sdk/openai
+```
+
+- 環境変数 `OPENAI_API_KEY` を設定
+
+**Anthropic 構成**
+
+```bash
+bun add @ai-sdk/anthropic
+```
+
+- 環境変数 `ANTHROPIC_API_KEY` を設定
+
+詳細な構成例は ARCHITECTURE.md §3.1 を参照。
 
 ### 3.2 開発時コマンド
 
