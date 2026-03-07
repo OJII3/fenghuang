@@ -43,7 +43,11 @@
 
 ### 3.1 LLM プロバイダー構成
 
-VercelAIAdapter は Vercel AI SDK のプロバイダーエコシステムを通じて多様な LLM/Embedding バックエンドに対応する。`model`（チャット用）と `embeddingModel`（埋め込み用）を独立して設定可能。
+OpenCode を LLM バックエンドとして使用する方法は 2 つある。
+
+#### 方式 A: Vercel AI SDK プロバイダー経由（推奨）
+
+`ai-sdk-provider-opencode-sdk` は `@opencode-ai/sdk` を内部で使用し、Vercel AI SDK の `LanguageModel` にブリッジするコミュニティプロバイダー。既存の `VercelAIAdapter` をそのまま使用でき、追加のアダプター実装が不要。
 
 | 用途      | プロバイダー | パッケージ                     | 備考                                          |
 | --------- | ------------ | ------------------------------ | --------------------------------------------- |
@@ -92,6 +96,31 @@ const adapter = new VercelAIAdapter({
 ```
 
 > **Note:** Anthropic は埋め込みモデルを提供していないため、埋め込み用に別のプロバイダーが必要です。
+
+#### 方式 B: @opencode-ai/sdk 直接使用
+
+`@opencode-ai/sdk` は OpenCode サーバーの公式 SDK。セッションベースの API（`session.prompt()`）を提供する。Vercel AI SDK の `LanguageModel` インターフェースとは互換性がないため、`VercelAIAdapter` は使用できず、`LLMPort` を直接実装するカスタムアダプターが必要になる。
+
+```typescript
+import { createOpencodeClient } from "@opencode-ai/sdk";
+
+// OpenCode サーバーへの直接接続
+const client = createOpencodeClient({
+	baseUrl: "http://localhost:4096",
+});
+
+// セッション作成 → プロンプト送信
+const session = await client.session.create({});
+const result = await client.session.prompt({
+	path: { id: session.id },
+	body: {
+		parts: [{ type: "text", text: "Hello" }],
+		model: { providerID: "anthropic", modelID: "claude-sonnet-4-5-20250929" },
+	},
+});
+```
+
+> **Note:** この方式は `LLMPort` を実装するカスタムアダプターの開発が必要です（未実装）。埋め込みには別途 Ollama 等を組み合わせる必要があります。
 
 ## 4. ディレクトリ構成
 
