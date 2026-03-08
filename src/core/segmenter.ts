@@ -268,6 +268,7 @@ function validateSegmentFields(seg: Record<string, unknown>, i: number): void {
 	validateIndexBounds(seg["startIndex"] as number, seg["endIndex"] as number, i);
 }
 
+/** Normalize surprise value from LLM output, falling back to "low" for invalid values */
 function normalizeSurprise(value: unknown): SurpriseLevel {
 	if (typeof value === "string" && VALID_SURPRISE.has(value)) {
 		return value as SurpriseLevel;

@@ -434,7 +434,15 @@ describe("Segmenter — schema validation", () => {
 		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("title");
 	});
 
-	test("falls back to low for invalid surprise", async () => {
+	test.each([
+		["invalid string", "medium"],
+		["undefined", undefined],
+		["null", null],
+		["number", 42],
+		["boolean", true],
+		["object", {}],
+		["array", []],
+	])("falls back to low for invalid surprise (%s)", async (_label, surprise) => {
 		const segmenter = new Segmenter(
 			createInvalidLLM({
 				segments: [
@@ -443,7 +451,7 @@ describe("Segmenter — schema validation", () => {
 						endIndex: 2,
 						title: "t",
 						summary: "s",
-						surprise: "invalid",
+						surprise,
 					},
 				],
 			}),
