@@ -42,6 +42,14 @@ function validateTimestamp(value: unknown, index: number): Date | undefined {
 	return new Date(value);
 }
 
+function validateTimestampAsObject(
+	value: unknown,
+	index: number,
+): { timestamp: Date } | Record<string, never> {
+	const ts = validateTimestamp(value, index);
+	return ts === undefined ? {} : { timestamp: ts };
+}
+
 function validateMessage(m: unknown, i: number): ChatMessage {
 	if (typeof m !== "object" || m === null) {
 		throw new TypeError(`messages[${i}]: expected object`);
@@ -50,11 +58,12 @@ function validateMessage(m: unknown, i: number): ChatMessage {
 	if (typeof obj["content"] !== "string") {
 		throw new TypeError(`messages[${i}]: expected content string`);
 	}
-	const role = validateRole(obj["role"]);
-	const timestamp = validateTimestamp(obj["timestamp"], i);
-	return timestamp
-		? { role, content: obj["content"] as string, timestamp }
-		: { role, content: obj["content"] as string };
+	return {
+		role: validateRole(obj["role"]),
+		content: obj["content"] as string,
+		...(typeof obj["name"] === "string" ? { name: obj["name"] } : {}),
+		...validateTimestampAsObject(obj["timestamp"], i),
+	};
 }
 
 export function validateMessages(data: unknown, maxLength = 500): ChatMessage[] {

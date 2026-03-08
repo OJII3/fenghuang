@@ -8,6 +8,8 @@ export type MessageRole = (typeof MESSAGE_ROLES)[number];
 export interface ChatMessage {
 	role: MessageRole;
 	content: string;
+	/** Display name of the speaker (e.g. participant name in multi-person conversations) */
+	name?: string;
 	timestamp?: Date;
 }
 

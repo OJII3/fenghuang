@@ -201,14 +201,22 @@ export class SQLiteStorageAdapter implements StoragePort {
 
 	async pushMessage(userId: string, message: ChatMessage): Promise<void> {
 		this.db
-			.prepare("INSERT INTO message_queue (user_id, role, content, timestamp) VALUES (?, ?, ?, ?)")
-			.run(userId, message.role, message.content, message.timestamp?.getTime() ?? null);
+			.prepare(
+				"INSERT INTO message_queue (user_id, role, content, name, timestamp) VALUES (?, ?, ?, ?, ?)",
+			)
+			.run(
+				userId,
+				message.role,
+				message.content,
+				message.name ?? null,
+				message.timestamp?.getTime() ?? null,
+			);
 	}
 
 	async getMessageQueue(userId: string): Promise<ChatMessage[]> {
 		const rows = this.db
 			.prepare(
-				"SELECT role, content, timestamp FROM message_queue WHERE user_id = ? ORDER BY id ASC",
+				"SELECT role, content, name, timestamp FROM message_queue WHERE user_id = ? ORDER BY id ASC",
 			)
 			.all(userId) as MessageRow[];
 		return rows.map((r) => rowToMessage(r));

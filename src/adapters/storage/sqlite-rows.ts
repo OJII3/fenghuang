@@ -81,6 +81,7 @@ export function rowToFact(row: FactRow): SemanticFact {
 export interface MessageRow {
 	role: string;
 	content: string;
+	name: string | null;
 	timestamp: number | null;
 }
 
@@ -88,6 +89,7 @@ export function rowToMessage(row: MessageRow): ChatMessage {
 	return {
 		role: validateRole(row.role),
 		content: row.content,
+		...(row.name === null ? {} : { name: row.name }),
 		...(row.timestamp === null ? {} : { timestamp: new Date(row.timestamp) }),
 	};
 }
