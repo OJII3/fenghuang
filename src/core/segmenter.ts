@@ -266,10 +266,14 @@ function validateSegmentFields(seg: Record<string, unknown>, i: number): void {
 	}
 
 	validateIndexBounds(seg["startIndex"] as number, seg["endIndex"] as number, i);
+}
 
-	if (!VALID_SURPRISE.has(seg["surprise"] as string)) {
-		throw new TypeError(`segments[${i}].surprise: expected low, high, or extremely_high`);
+/** Normalize surprise value from LLM output, falling back to "low" for invalid values */
+function normalizeSurprise(value: unknown): SurpriseLevel {
+	if (typeof value === "string" && VALID_SURPRISE.has(value)) {
+		return value as SurpriseLevel;
 	}
+	return "low";
 }
 
 function parseSegment(s: unknown, i: number): SegmentResult {
@@ -284,6 +288,6 @@ function parseSegment(s: unknown, i: number): SegmentResult {
 		endIndex: seg["endIndex"] as number,
 		title: seg["title"] as string,
 		summary: seg["summary"] as string,
-		surprise: seg["surprise"] as SurpriseLevel,
+		surprise: normalizeSurprise(seg["surprise"]),
 	};
 }
