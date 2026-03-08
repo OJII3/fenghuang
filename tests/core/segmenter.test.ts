@@ -434,7 +434,7 @@ describe("Segmenter — schema validation", () => {
 		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("title");
 	});
 
-	test("rejects segment with invalid surprise", async () => {
+	test("falls back to low for invalid surprise", async () => {
 		const segmenter = new Segmenter(
 			createInvalidLLM({
 				segments: [
@@ -452,7 +452,9 @@ describe("Segmenter — schema validation", () => {
 		);
 
 		await segmenter.addMessage(userId, makeMessage("first"));
-		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("surprise");
+		const episodes = await segmenter.addMessage(userId, makeMessage("trigger"));
+		expect(episodes).toHaveLength(1);
+		expect(episodes[0]!.surprise).toBe(0.2);
 	});
 
 	test("rejects segment with non-integer startIndex", async () => {
