@@ -185,7 +185,10 @@ export class Segmenter {
 		force: boolean,
 	): Promise<SegmentationOutput> {
 		const formatted = messages
-			.map((m, i) => `[${i}] ${m.role}: ${escapeXmlContent(m.content)}`)
+			.map((m, i) => {
+				const speaker = m.name ? `${m.role}(${escapeXmlContent(m.name)})` : m.role;
+				return `[${i}] ${speaker}: ${escapeXmlContent(m.content)}`;
+			})
 			.join("\n");
 
 		const forceRule = force

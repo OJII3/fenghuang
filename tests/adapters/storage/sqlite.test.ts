@@ -341,6 +341,35 @@ describe("SQLiteStorage — message queue", () => {
 		expect(queue).toHaveLength(1);
 		expect(queue[0]!.timestamp).toBeUndefined();
 	});
+
+	test("preserves message name through round-trip", async () => {
+		await storage.pushMessage(userId, { role: "user", content: "hello", name: "Alice" });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.name).toBe("Alice");
+	});
+
+	test("message without name round-trips correctly", async () => {
+		await storage.pushMessage(userId, { role: "user", content: "hello" });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.name).toBeUndefined();
+	});
+
+	test("preserves message name in episode messages JSON", async () => {
+		const messages: ChatMessage[] = [
+			{ role: "user", content: "hello", name: "Alice" },
+			{ role: "assistant", content: "hi there" },
+		];
+		const ep = makeEpisode({ messages });
+		await storage.saveEpisode(userId, ep);
+
+		const found = await storage.getEpisodeById(userId, ep.id);
+		expect(found!.messages[0]!.name).toBe("Alice");
+		expect(found!.messages[1]!.name).toBeUndefined();
+	});
 });
 
 describe("SQLiteStorage — tenant isolation (message queue)", () => {

@@ -5,6 +5,7 @@ const VALID_ROLES = new Set<string>(MESSAGE_ROLES);
 const VALID_CATEGORIES = new Set<string>(FACT_CATEGORIES);
 
 const MAX_EMBEDDING_DIM = 4096;
+const MAX_NAME_LENGTH = 100;
 
 export function parseJson(raw: string, field: string): unknown {
 	try {
@@ -42,6 +43,31 @@ function validateTimestamp(value: unknown, index: number): Date | undefined {
 	return new Date(value);
 }
 
+function validateName(value: unknown, index: number): string | undefined {
+	if (value === undefined || value === null) {
+		return undefined;
+	}
+	if (typeof value !== "string") {
+		return undefined;
+	}
+	if (value.length > MAX_NAME_LENGTH) {
+		throw new RangeError(
+			`messages[${index}].name: too long (${value.length}), maximum ${MAX_NAME_LENGTH}`,
+		);
+	}
+	// Strip control characters (newlines, tabs, etc.) to prevent prompt format breaking
+	// eslint-disable-next-line no-control-regex -- intentional control character stripping
+	return value.replaceAll(/[\u0000-\u001F\u007F]/g, "");
+}
+
+function validateTimestampAsObject(
+	value: unknown,
+	index: number,
+): { timestamp: Date } | Record<string, never> {
+	const ts = validateTimestamp(value, index);
+	return ts === undefined ? {} : { timestamp: ts };
+}
+
 function validateMessage(m: unknown, i: number): ChatMessage {
 	if (typeof m !== "object" || m === null) {
 		throw new TypeError(`messages[${i}]: expected object`);
@@ -50,11 +76,13 @@ function validateMessage(m: unknown, i: number): ChatMessage {
 	if (typeof obj["content"] !== "string") {
 		throw new TypeError(`messages[${i}]: expected content string`);
 	}
-	const role = validateRole(obj["role"]);
-	const timestamp = validateTimestamp(obj["timestamp"], i);
-	return timestamp
-		? { role, content: obj["content"] as string, timestamp }
-		: { role, content: obj["content"] as string };
+	const name = validateName(obj["name"], i);
+	return {
+		role: validateRole(obj["role"]),
+		content: obj["content"] as string,
+		...(name === undefined ? {} : { name }),
+		...validateTimestampAsObject(obj["timestamp"], i),
+	};
 }
 
 export function validateMessages(data: unknown, maxLength = 500): ChatMessage[] {

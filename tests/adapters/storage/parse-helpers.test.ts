@@ -119,6 +119,38 @@ describe("validateMessages", () => {
 		const result = validateMessages([{ role: "user", content: "hi" }]);
 		expect(result[0]!.timestamp).toBeUndefined();
 	});
+
+	test("preserves name when present as string", () => {
+		const result = validateMessages([{ role: "user", content: "hello", name: "Alice" }]);
+		expect(result[0]!.name).toBe("Alice");
+	});
+
+	test("omits name when absent", () => {
+		const result = validateMessages([{ role: "user", content: "hello" }]);
+		expect(result[0]!.name).toBeUndefined();
+	});
+
+	test("omits name when not a string", () => {
+		const result = validateMessages([{ role: "user", content: "hello", name: 42 }]);
+		expect(result[0]!.name).toBeUndefined();
+	});
+
+	test("omits name when null", () => {
+		const result = validateMessages([{ role: "user", content: "hello", name: null }]);
+		expect(result[0]!.name).toBeUndefined();
+	});
+
+	test("strips control characters from name", () => {
+		const result = validateMessages([{ role: "user", content: "hello", name: "Alice\nBob\t\r" }]);
+		expect(result[0]!.name).toBe("AliceBob");
+	});
+
+	test("throws when name exceeds max length", () => {
+		const longName = "A".repeat(101);
+		expect(() => validateMessages([{ role: "user", content: "hello", name: longName }])).toThrow(
+			"name: too long",
+		);
+	});
 });
 
 describe("validateEmbedding", () => {

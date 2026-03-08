@@ -35,7 +35,7 @@ export function createFactTables(db: Database): void {
 export function createMessageQueue(db: Database): void {
 	db.exec(`CREATE TABLE IF NOT EXISTS message_queue (
 		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL,
-		role TEXT NOT NULL, content TEXT NOT NULL, timestamp INTEGER)`);
+		role TEXT NOT NULL, content TEXT NOT NULL, name TEXT, timestamp INTEGER)`);
 	db.exec("CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)");
 }
 

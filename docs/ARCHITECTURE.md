@@ -197,6 +197,8 @@ export type MessageRole = "system" | "user" | "assistant";
 export interface ChatMessage {
 	role: MessageRole;
 	content: string;
+	/** Display name of the speaker (e.g. participant name in multi-person conversations) */
+	name?: string;
 	timestamp?: Date;
 }
 ```
@@ -220,7 +222,8 @@ export interface ChatMessage {
 3. 各エピソードを逐次処理（事実の状態が変わるため順序保証が必要）:
    a. `StoragePort.getFacts()` で現在の既存事実を取得
    b. `LLMPort.chatStructured()` でエピソードと既存事実一覧を入力し、
-   事実の抽出とアクション決定（New/Reinforce/Update/Invalidate）を一括実行
+   事実の抽出とアクション決定（New/Reinforce/Update/Invalidate）を一括実行。
+   抽出される事実には明示的な主語が含まれ、ユーザーだけでなく任意の参加者・エンティティについても抽出可能
    c. 各抽出事実のアクションに応じて:
    - New: `LLMPort.embed()` で embedding 生成 → `StoragePort.saveFact()`
    - Reinforce: `StoragePort.updateFact()` で sourceEpisodicIds に追加

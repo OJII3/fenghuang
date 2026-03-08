@@ -440,6 +440,53 @@ describe("ConsolidationPipeline — prompt construction", () => {
 		expect(capturedPrompt).toContain("No existing facts.");
 	});
 
+	test("prompt contains subject-aware extraction rules", async () => {
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		let capturedPrompt = "";
+		const llm = createDynamicMockLLM((messages) => {
+			const systemMsg = messages.find((m) => m.role === "system");
+			if (systemMsg) {
+				capturedPrompt = systemMsg.content;
+			}
+			return { facts: [] };
+		});
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		await pipeline.consolidate(userId);
+
+		expect(capturedPrompt).toContain("explicit subject");
+		expect(capturedPrompt).toContain("role(name)");
+		expect(capturedPrompt).toContain("not limited to the user");
+	});
+
+	test("episode content includes speaker names when present", async () => {
+		const episode = makeEpisode({
+			messages: [
+				{ role: "user", content: "I like TypeScript", name: "Alice" },
+				{ role: "assistant", content: "That's great!" },
+			],
+		});
+		await storage.saveEpisode(userId, episode);
+
+		let capturedContent = "";
+		const llm = createDynamicMockLLM((messages) => {
+			const userMsg = messages.find((m) => m.role === "user");
+			if (userMsg) {
+				capturedContent = userMsg.content;
+			}
+			return { facts: [] };
+		});
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		await pipeline.consolidate(userId);
+
+		expect(capturedContent).toContain("user(Alice):");
+		expect(capturedContent).toContain("assistant:");
+		expect(capturedContent).not.toContain("assistant():");
+	});
+
 	test("prompt wraps existing facts in <existing_facts> tags", async () => {
 		const existingFact = createFact({
 			userId,
