@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-fenghuang は、AI アシスタント [vicissitude](https://github.com/ojii3/vicissitude) に長期記憶能力を提供するライブラリである。人間の認知記憶システム（エピソード記憶・意味記憶）を模倣し、会話を超えてユーザーに関する知識を蓄積・想起する。
+fenghuang は、AI アシスタント [vicissitude](https://github.com/ojii3/vicissitude) に長期記憶能力を提供するライブラリである。人間の認知記憶システム（エピソード記憶・意味記憶）を模倣し、会話を超えて参加者やトピックに関する知識を蓄積・想起する。
 
 [plast-mem](https://github.com/moeru-ai/plast-mem) にインスパイアされた設計を、Bun + TypeScript のライブラリとして実装する。
 
@@ -16,6 +16,7 @@ fenghuang は、AI アシスタント [vicissitude](https://github.com/ojii3/vic
 ### 3.1 イベントセグメンテーション
 
 - 連続的な会話の流れを、トピック・意図の変化に基づいてエピソードに分割する
+- マルチスピーカー対応: メッセージに speaker name が含まれる場合、セグメンテーションで考慮される
 - LLM を使用してセグメント境界と驚きレベル（surprise）を判定する
 - セグメンテーションのトリガー条件:
   - softTrigger: メッセージ数が soft 閾値に達した場合、LLM がセグメント判定を行う（省略可能）
@@ -32,6 +33,7 @@ fenghuang は、AI アシスタント [vicissitude](https://github.com/ojii3/vic
 ### 3.3 意味記憶
 
 - エピソード記憶から持続的な「事実」を抽出する統合パイプライン
+- 事実には明示的な主語が含まれ、ユーザーだけでなく任意の参加者・エンティティ・トピックについても抽出可能
 - 事実のカテゴリ分類: identity, preference, interest, personality, relationship, experience, goal, guideline
 - 統合アクション: New, Reinforce, Update, Invalidate
 - 時間的有効性（valid_at / invalid_at）による管理

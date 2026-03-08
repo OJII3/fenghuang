@@ -185,7 +185,7 @@ function formatExistingFacts(existingFacts: SemanticFact[]): string {
 function formatEpisodeContent(episode: Episode): string {
 	const msgs = episode.messages
 		.map((m) => {
-			const speaker = m.name ? `${m.role}(${m.name})` : m.role;
+			const speaker = m.name ? `${m.role}(${escapeXmlContent(m.name)})` : m.role;
 			return `${speaker}: ${escapeXmlContent(m.content)}`;
 		})
 		.join("\n");

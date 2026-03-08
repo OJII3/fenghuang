@@ -186,7 +186,7 @@ export class Segmenter {
 	): Promise<SegmentationOutput> {
 		const formatted = messages
 			.map((m, i) => {
-				const speaker = m.name ? `${m.role}(${m.name})` : m.role;
+				const speaker = m.name ? `${m.role}(${escapeXmlContent(m.name)})` : m.role;
 				return `[${i}] ${speaker}: ${escapeXmlContent(m.content)}`;
 			})
 			.join("\n");

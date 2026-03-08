@@ -352,6 +352,30 @@ describe("InMemoryStorage — message timestamp", () => {
 	});
 });
 
+describe("InMemoryStorage — message name", () => {
+	let storage: InMemoryStorageAdapter;
+
+	beforeEach(() => {
+		storage = new InMemoryStorageAdapter();
+	});
+
+	test("preserves message name through round-trip", async () => {
+		await storage.pushMessage(userId, { role: "user", content: "hello", name: "Alice" });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.name).toBe("Alice");
+	});
+
+	test("message without name round-trips correctly", async () => {
+		await storage.pushMessage(userId, { role: "user", content: "no name" });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.name).toBeUndefined();
+	});
+});
+
 describe("InMemoryStorage — search episodes", () => {
 	let storage: InMemoryStorageAdapter;
 

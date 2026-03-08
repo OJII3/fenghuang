@@ -2,7 +2,7 @@
 
 ## 1. 最終更新
 
-2026-03-07 / Claude
+2026-03-08 / Claude
 
 ## 2. 現在の真実（Project Truth）
 
@@ -113,6 +113,23 @@
 3. **RRF**: Reciprocal Rank Fusion（k=60, TREC 標準値）でテキスト/ベクトルの 2 ランキングを統合
 4. **FSRS ブースト**: エピソードのみ retrievability スコアで追加加算（fsrsWeight=0.5）
 5. **cosine similarity は Adapter 層**: Core ドメインの関心事ではないため `src/adapters/storage/vector-math.ts` に配置
+
+## 7.6 Post-M4: Speaker Name + Subject-Aware Facts (PR #13)
+
+| 項目                 | 変更内容                                                               | ステータス |
+| -------------------- | ---------------------------------------------------------------------- | ---------- |
+| ChatMessage.name     | optional な `name?: string` フィールドを追加（話者識別）               | 完了       |
+| 入力バリデーション   | `name` に長さ制限（100文字）と制御文字除去を追加                       | 完了       |
+| プロンプトエスケープ | `name` を `escapeXmlContent()` でエスケープ（インジェクション対策）    | 完了       |
+| Subject-aware 抽出   | ファクト抽出プロンプトで主語を必須に（任意の参加者・エンティティ対応） | 完了       |
+| SQLite スキーマ      | `message_queue` に `name TEXT` カラム追加                              | 完了       |
+| テスト追加           | parse-helpers, SQLite, InMemory, consolidation に `name` テスト追加    | 完了       |
+| ドキュメント更新     | ARCHITECTURE.md, SPEC.md, STATUS.md 更新                               | 完了       |
+
+### 設計上の決定
+
+1. **`name` フィールドは構造的変更なし**: `SemanticFact` に `subject` フィールドを追加する案もあったが、主語が人・場所・モノ・概念など多様であるため、プロンプト改善で「主語を含めた文で抽出」する方針を採用
+2. **制御文字サニタイズ**: `name` の改行・制御文字を除去し、プロンプトのメッセージ境界フォーマットが破壊されることを防止
 
 ## 7.5 技術的負債
 
