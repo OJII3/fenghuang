@@ -34,12 +34,93 @@
     │  Adapters   │    │  Adapters   │
     ├─────────────┤    ├─────────────┤
     │ Vercel AI   │    │ SQLite      │
-    │ (Anthropic) │    │ (Postgres)  │
+    │ + providers │    │ (Postgres)  │
     │             │    │ in-memory   │
     └─────────────┘    └─────────────┘
 
 () = 将来追加予定
 ```
+
+### 3.1 LLM プロバイダー構成
+
+OpenCode を LLM バックエンドとして使用する方法は 2 つある。
+
+#### 方式 A: Vercel AI SDK プロバイダー経由（推奨）
+
+`ai-sdk-provider-opencode-sdk` は `@opencode-ai/sdk` を内部で使用し、Vercel AI SDK の `LanguageModel` にブリッジするコミュニティプロバイダー。既存の `VercelAIAdapter` をそのまま使用でき、追加のアダプター実装が不要。
+
+| 用途      | プロバイダー | パッケージ                     | 備考                                          |
+| --------- | ------------ | ------------------------------ | --------------------------------------------- |
+| Chat      | Anthropic    | `@ai-sdk/anthropic`            | Claude モデル                                 |
+| Chat      | OpenAI       | `@ai-sdk/openai`               | GPT モデル                                    |
+| Chat      | OpenCode     | `ai-sdk-provider-opencode-sdk` | OpenCode 経由で複数プロバイダーを統一利用     |
+| Embedding | OpenAI       | `@ai-sdk/openai`               | text-embedding-3-small 等                     |
+| Embedding | Ollama       | `ollama-ai-provider-v2`        | ローカル埋め込みモデル（nomic-embed-text 等） |
+
+**構成例: OpenCode（チャット）+ Ollama（埋め込み）**
+
+```typescript
+import { createOpencode } from "ai-sdk-provider-opencode-sdk";
+import { ollama } from "ollama-ai-provider-v2";
+import { VercelAIAdapter } from "fenghuang";
+
+const adapter = new VercelAIAdapter({
+	model: createOpencode()("anthropic/claude-sonnet-4-5-20250929"),
+	embeddingModel: ollama.embedding("nomic-embed-text"),
+});
+```
+
+**構成例: OpenAI（チャット + 埋め込み）**
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { VercelAIAdapter } from "fenghuang";
+
+const adapter = new VercelAIAdapter({
+	model: openai("gpt-4o"),
+	embeddingModel: openai.embedding("text-embedding-3-small"),
+});
+```
+
+**構成例: Anthropic（チャット）+ OpenAI（埋め込み）**
+
+```typescript
+import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import { VercelAIAdapter } from "fenghuang";
+
+const adapter = new VercelAIAdapter({
+	model: anthropic("claude-sonnet-4-5-20250929"),
+	embeddingModel: openai.embedding("text-embedding-3-small"),
+});
+```
+
+> **Note:** Anthropic は埋め込みモデルを提供していないため、埋め込み用に別のプロバイダーが必要です。
+
+#### 方式 B: @opencode-ai/sdk 直接使用
+
+`@opencode-ai/sdk` は OpenCode サーバーの公式 SDK。セッションベースの API（`session.prompt()`）を提供する。Vercel AI SDK の `LanguageModel` インターフェースとは互換性がないため、`VercelAIAdapter` は使用できず、`LLMPort` を直接実装するカスタムアダプターが必要になる。
+
+```typescript
+import { createOpencodeClient } from "@opencode-ai/sdk";
+
+// OpenCode サーバーへの直接接続
+const client = createOpencodeClient({
+	baseUrl: "http://localhost:4096",
+});
+
+// セッション作成 → プロンプト送信
+const session = await client.session.create({});
+const result = await client.session.prompt({
+	path: { id: session.id },
+	body: {
+		parts: [{ type: "text", text: "Hello" }],
+		model: { providerID: "anthropic", modelID: "claude-sonnet-4-5-20250929" },
+	},
+});
+```
+
+> **Note:** この方式は `LLMPort` を実装するカスタムアダプターの開発が必要です（未実装）。埋め込みには別途 Ollama 等を組み合わせる必要があります。
 
 ## 4. ディレクトリ構成
 
@@ -273,6 +354,7 @@ tests/
 │   │   └── utils.test.ts
 │   └── storage/
 │       ├── sqlite.test.ts
+│       ├── sqlite-schema.test.ts
 │       ├── in-memory.test.ts
 │       ├── parse-helpers.test.ts
 │       └── vector-math.test.ts

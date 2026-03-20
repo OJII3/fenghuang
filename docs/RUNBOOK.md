@@ -23,6 +23,51 @@
 
 1. Nix flake + direnv で Bun が自動的に利用可能になる
 2. `bun install` で依存パッケージをインストール
+3. LLM プロバイダーパッケージをインストール（利用するプロバイダーに応じて選択）
+
+### 3.1.1 LLM プロバイダーのセットアップ
+
+fenghuang はライブラリとして提供されるため、LLM プロバイダーは利用者が選択・インストールする。VercelAIAdapter の `model`（チャット用）と `embeddingModel`（埋め込み用）は独立して設定可能。
+
+**OpenCode + Ollama 構成（方式 A: Vercel AI SDK プロバイダー経由）**
+
+```bash
+bun add ai-sdk-provider-opencode-sdk ollama-ai-provider-v2
+```
+
+- `ai-sdk-provider-opencode-sdk`: `@opencode-ai/sdk` を Vercel AI SDK の `LanguageModel` にブリッジするコミュニティプロバイダー
+- `ollama-ai-provider-v2`: ローカル埋め込みモデル用。事前に `ollama pull nomic-embed-text` 等でモデルを取得しておく
+- 事前に `opencode` サーバーを起動しておく
+
+**OpenCode + Ollama 構成（方式 B: @opencode-ai/sdk 直接使用）**
+
+```bash
+bun add @opencode-ai/sdk ollama
+```
+
+- `@opencode-ai/sdk`: OpenCode サーバーの公式 SDK（セッションベースの API）
+- `ollama`: Ollama 公式クライアント（埋め込み用）
+- この方式は `LLMPort` を実装するカスタムアダプターの開発が必要（未実装）
+- 事前に `opencode` サーバーと `ollama` サーバーを起動しておく
+
+**OpenAI 構成**
+
+```bash
+bun add @ai-sdk/openai
+```
+
+- 環境変数 `OPENAI_API_KEY` を設定
+
+**Anthropic 構成**
+
+```bash
+bun add @ai-sdk/anthropic
+```
+
+- 環境変数 `ANTHROPIC_API_KEY` を設定
+- Anthropic は埋め込みモデルを提供していないため、埋め込み用に別のプロバイダー（OpenAI, Ollama 等）が必要
+
+詳細な構成例は ARCHITECTURE.md §3.1 を参照。
 
 ### 3.2 開発時コマンド
 
